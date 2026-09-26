@@ -5,7 +5,7 @@
 
 models:
   exercise_generation:
-    model: "deepseek-v4.1-flash"     # génération d'exercice
+    model: "deepseek-flash"          # génération d'exercice
     temperature: 0.7
     max_tokens: 2048
   evaluation:
@@ -21,7 +21,7 @@ models:
     temperature: 0.5
     max_tokens: 4096
   activity_analysis:
-    model: "deepseek-v4.1-flash"     # analyse WakaTime/ActivityWatch (différé)
+    model: "deepseek-flash"          # analyse WakaTime/ActivityWatch (différé)
     temperature: 0.3
     max_tokens: 1024
 
