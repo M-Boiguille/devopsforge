@@ -1,0 +1,26 @@
+default:
+  connaissance: 0.15
+  implementation: 0.25
+  debug: 0.20
+  explication: 0.15
+  design: 0.15
+  securite: 0.05
+  performance: 0.05
+
+security_focused:
+  securite: 0.25
+  implementation: 0.20
+  connaissance: 0.15
+  explication: 0.15
+  debug: 0.15
+  design: 0.10
+  performance: 0.00
+
+design_focused:
+  design: 0.30
+  connaissance: 0.15
+  implementation: 0.15
+  debug: 0.10
+  explication: 0.15
+  securite: 0.10
+  performance: 0.05

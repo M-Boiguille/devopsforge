@@ -1,0 +1,127 @@
+name: generate-exercise
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1-5"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN || github.token }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pyyaml requests
+
+      - name: Clone private profile repo
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository_owner }}/devopsforge-profile.git" /tmp/profile-repo
+
+      - name: Generate exercise
+        env:
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+          AI_GATEWAY_BASE_URL: ${{ vars.AI_GATEWAY_BASE_URL }}
+          PROJECT_STATE: ${{ vars.PROJECT_STATE }}
+          PROFILE_REPO_PATH: /tmp/profile-repo
+        run: |
+          python3 - <<'PY'
+          import glob
+          import os
+          from datetime import date
+
+          import requests
+          import yaml
+
+          repo = os.environ["GITHUB_WORKSPACE"]
+          profile_repo = os.environ["PROFILE_REPO_PATH"]
+
+          def read(rel, base=repo):
+              with open(os.path.join(base, rel), encoding="utf-8") as fh:
+                  return fh.read()
+
+          def load_yaml(path):
+              with open(path, encoding="utf-8") as fh:
+                  return yaml.safe_load(fh) or {}
+
+          agent = load_yaml(os.path.join(repo, "config/agent.yaml"))
+          model = agent["models"]["exercise_generation"]["model"]
+
+          profiles = {}
+          for path in sorted(glob.glob(os.path.join(profile_repo, "profile", "*.yaml"))):
+              profiles[os.path.basename(path)] = load_yaml(path)
+
+          dues = load_yaml(os.path.join(profile_repo, "dues.yaml"))
+
+          exercises = sorted(glob.glob(os.path.join(repo, "sessions", "*-exercise.md")))
+          last_exercise = read(os.path.relpath(exercises[-1], repo)) if exercises else "(aucun)"
+
+          template = read(".github/prompts/generate-exercise.md")
+          project_state = os.environ.get("PROJECT_STATE") or "(non renseigné au MVP)"
+
+          user_prompt = (
+              template
+              .replace("{profile}", yaml.safe_dump(profiles, allow_unicode=True, sort_keys=False))
+              .replace("{dues}", yaml.safe_dump(dues, allow_unicode=True, sort_keys=False))
+              .replace("{last_exercise}", last_exercise)
+              .replace("{project_state}", project_state)
+          )
+
+          base_url = (os.environ.get("AI_GATEWAY_BASE_URL") or "https://api.deepseek.com/v1").rstrip("/")
+          api_key = os.environ["AI_GATEWAY_API_KEY"]
+
+          resp = requests.post(
+              f"{base_url}/chat/completions",
+              headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+              json={
+                  "model": model,
+                  "messages": [
+                      {"role": "system", "content": "Tu es un formateur DevOps exigeant mais bienveillant."},
+                      {"role": "user", "content": user_prompt},
+                  ],
+                  "temperature": agent["models"]["exercise_generation"].get("temperature", 0.7),
+              },
+              timeout=120,
+          )
+          resp.raise_for_status()
+          content = resp.json()["choices"][0]["message"]["content"]
+
+          filename = f"{date.today().isoformat()}-exercise.md"
+          with open(os.path.join(repo, "sessions", filename), "w", encoding="utf-8") as fh:
+              fh.write(content.rstrip() + "\n")
+
+          print(f"::notice::Exercise written to sessions/{filename}")
+          PY
+
+      - name: Open PR
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          BRANCH="bot/exercise-$(date +%F)-run${{ github.run_number }}"
+          git config user.name "devopsforge-bot"
+          git config user.email "bot@devopsforge.local"
+          git checkout -b "$BRANCH"
+          git add sessions/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "feat: generate exercise of the day"
+          git push -u origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" \
+            --title "Exercice du $(date +%F)" \
+            --body "Généré automatiquement par DevOpsForge. À résoudre puis à soumettre via une PR \`sessions/YYYY-MM-DD-submission.md\`."

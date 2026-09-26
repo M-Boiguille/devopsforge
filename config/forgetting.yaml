@@ -1,0 +1,5 @@
+decay:
+  rate: 0.30              # λ d'Ebbinghaus
+  review_threshold: 0.80
+  check_interval: "daily"
+  # Formule: score_actuel = score_initial * exp(-rate * jours_ecoules)

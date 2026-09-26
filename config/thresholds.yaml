@@ -1,0 +1,25 @@
+difficulty:
+  promote_after: 2
+  demote_threshold: 0.5
+  introduce_new_when:
+    dues_count: 0
+    avg_mastery: 0.75
+
+mastery:
+  min_dimensions_required: 4
+  min_score_per_dimension: 0.85
+  excellence_threshold: 0.95
+
+review:
+  strictness: high        # low / medium / high / brutal
+  flag_patterns:
+    - "hardcoded_secret"
+    - "no_error_handling"
+    - "missing_resource_limits"
+    - "latest_tag"
+  require_justification: true
+
+interview:
+  frequency: 5
+  duration: [30, 45]
+  pressure: high

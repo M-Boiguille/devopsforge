@@ -1,0 +1,218 @@
+name: analyze-session
+
+on:
+  pull_request:
+    paths:
+      - "sessions/**-submission.md"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install linters
+        run: |
+          pip install flake8
+          sudo apt-get update -qq && sudo apt-get install -y shellcheck
+
+      - name: Extract code blocks
+        run: |
+          python3 - <<'PY'
+          import glob
+          import re
+          from pathlib import Path
+
+          subs = sorted(glob.glob("sessions/*-submission.md"))
+          if not subs:
+              raise SystemExit("No submission found")
+
+          out = Path("/tmp/lint")
+          out.mkdir(exist_ok=True)
+          text = Path(subs[-1]).read_text(encoding="utf-8")
+          count = 0
+          for m in re.finditer(r"```(python|bash|sh)\s*\n(.*?)```", text, re.DOTALL):
+              lang, code = m.group(1), m.group(2)
+              ext = "py" if lang == "python" else "sh"
+              count += 1
+              (out / f"block_{count}.{ext}").write_text(code, encoding="utf-8")
+          print(f"::notice::extracted {count} code block(s)")
+          PY
+
+      - name: Lint (non-blocking)
+        run: |
+          flake8 /tmp/lint --max-line-length=100 || true
+          for f in /tmp/lint/*.sh; do shellcheck "$f" || true; done
+
+  evaluate:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pyyaml requests flake8
+          sudo apt-get update -qq && sudo apt-get install -y shellcheck
+
+      - name: Lint report
+        run: |
+          python3 - <<'PY'
+          import glob
+          import re
+          from pathlib import Path
+
+          subs = sorted(glob.glob("sessions/*-submission.md"))
+          text = Path(subs[-1]).read_text(encoding="utf-8")
+          out = Path("/tmp/lint")
+          out.mkdir(exist_ok=True)
+          count = 0
+          for m in re.finditer(r"```(python|bash|sh)\s*\n(.*?)```", text, re.DOTALL):
+              lang, code = m.group(1), m.group(2)
+              ext = "py" if lang == "python" else "sh"
+              count += 1
+              (out / f"block_{count}.{ext}").write_text(code, encoding="utf-8")
+          PY
+          {
+            echo "=== flake8 ==="
+            flake8 /tmp/lint --max-line-length=100 || true
+            echo "=== shellcheck ==="
+            for f in /tmp/lint/*.sh; do shellcheck "$f" || true; done
+          } > /tmp/lint-report.txt || true
+          echo "lint report captured"
+
+      - name: Evaluate submission
+        env:
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+          AI_GATEWAY_BASE_URL: ${{ vars.AI_GATEWAY_BASE_URL }}
+        run: |
+          python3 - <<'PY'
+          import glob
+          import json
+          import os
+          import re
+          import sys
+          from pathlib import Path
+
+          import requests
+          import yaml
+
+          repo = os.environ["GITHUB_WORKSPACE"]
+
+          def load(rel):
+              with open(os.path.join(repo, rel), encoding="utf-8") as fh:
+                  return yaml.safe_load(fh) or {}
+
+          def read(rel):
+              with open(os.path.join(repo, rel), encoding="utf-8") as fh:
+                  return fh.read()
+
+          agent = load("config/agent.yaml")
+          model = agent["models"]["evaluation"]["model"]
+          thresholds = load("config/thresholds.yaml")
+          patterns = thresholds.get("review", {}).get("flag_patterns", [])
+
+          submissions = sorted(glob.glob(os.path.join(repo, "sessions", "*-submission.md")))
+          if not submissions:
+              sys.exit("No submission found")
+          submission = submissions[-1]
+          prefix = os.path.basename(submission).split("-submission.md")[0]
+          submission_text = read(os.path.relpath(submission, repo))
+
+          exercises = sorted(glob.glob(os.path.join(repo, "sessions", "*-exercise.md")))
+          exercise_text = read(os.path.relpath(exercises[-1], repo)) if exercises else "(aucun)"
+
+          detected = [pat for pat in patterns if re.search(pat, submission_text, re.IGNORECASE)]
+          lint_report = Path("/tmp/lint-report.txt").read_text(encoding="utf-8") if Path("/tmp/lint-report.txt").exists() else "(vide)"
+
+          weights = load("config/grading_weights.yaml")
+          errors_log = read("errors.log") if os.path.exists(os.path.join(repo, "errors.log")) else "(vide)"
+
+          template = read(".github/prompts/evaluate-submission.md")
+          user_prompt = (
+              template
+              .replace("{exercise}", exercise_text)
+              .replace("{submission}", submission_text)
+              .replace("{self_evaluation}", "(auto-évaluation incluse dans la soumission)")
+              .replace("{grading_weights}", yaml.safe_dump(weights, allow_unicode=True, sort_keys=False))
+              .replace("{errors_log}", errors_log)
+              .replace("{anti_patterns_detected}", json.dumps(detected, ensure_ascii=False))
+              .replace("{lint_report}", lint_report)
+          )
+
+          base_url = (os.environ.get("AI_GATEWAY_BASE_URL") or "https://api.deepseek.com/v1").rstrip("/")
+          api_key = os.environ["AI_GATEWAY_API_KEY"]
+
+          resp = requests.post(
+              f"{base_url}/chat/completions",
+              headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+              json={
+                  "model": model,
+                  "messages": [
+                      {"role": "system", "content": "Tu es un évaluateur DevOps exigeant (esprit école 42). Réponds en JSON strict uniquement."},
+                      {"role": "user", "content": user_prompt},
+                  ],
+                  "temperature": agent["models"]["evaluation"].get("temperature", 0.2),
+              },
+              timeout=180,
+          )
+          resp.raise_for_status()
+          content = resp.json()["choices"][0]["message"]["content"]
+
+          def extract_json(text):
+              m = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL)
+              if m:
+                  return m.group(1)
+              return text.strip()
+
+          parsed = json.loads(extract_json(content))
+          report = parsed.pop("report", "")
+
+          filename = f"{prefix}-analysis.md"
+          with open(os.path.join(repo, "sessions", filename), "w", encoding="utf-8") as fh:
+              fh.write("---\n")
+              yaml.safe_dump(parsed, fh, allow_unicode=True, sort_keys=False, default_flow_style=False)
+              fh.write("---\n")
+              fh.write(report.rstrip() + "\n")
+
+          print(f"::notice::Analysis written to sessions/{filename}")
+          PY
+
+      - name: Commit analysis to PR branch
+        run: |
+          git config user.name "devopsforge-bot"
+          git config user.email "bot@devopsforge.local"
+          git add sessions/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "feat: analyze submission"
+            git push
+          fi
+
+      - name: Approve PR
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          gh pr review "${{ github.event.pull_request.number }}" --approve --body "Analyse automatique DevOpsForge terminée. Voir sessions/*-analysis.md."

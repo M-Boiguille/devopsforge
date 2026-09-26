@@ -1,0 +1,51 @@
+name: update-profile
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "sessions/**-analysis.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Clone private profile repo
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository_owner }}/devopsforge-profile.git" /tmp/profile-repo
+
+      - name: Update profile
+        env:
+          PROFILE_REPO_PATH: /tmp/profile-repo
+        run: python3 scripts/update_profile.py
+
+      - name: Push profile to private repo
+        run: |
+          cd /tmp/profile-repo
+          git config user.name "devopsforge-bot"
+          git config user.email "bot@devopsforge.local"
+          git add profile/ dues.yaml errors.log
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update profile from analysis"
+            git push
+          fi
