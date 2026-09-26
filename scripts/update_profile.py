@@ -1,9 +1,10 @@
 """Met à jour le profil multidimensionnel à partir d'un rapport d'analyse.
 
 Usage:
-    python3 scripts/update_profile.py [--analysis sessions/YYYY-MM-DD-analysis.md]
+    python3 scripts/update_profile.py [--analysis exercises/NNN-notion/analysis.md]
 
-Si `--analysis` n'est pas fourni, le rapport le plus récent de `sessions/` est utilisé.
+Si `--analysis` n'est pas fourni, le rapport de l'exercice au numéro le plus élevé
+de `exercises/` est utilisé.
 
 Le rapport d'analyse est un fichier Markdown avec un front-matter YAML (voir
 `specs/001-devopsforge-mvp/contracts/analysis-format.md`).
@@ -28,7 +29,7 @@ def parse_args() -> argparse.Namespace:
         "--analysis",
         type=Path,
         default=None,
-        help="Chemin du rapport d'analyse (défaut: le plus récent de sessions/).",
+        help="Chemin du rapport d'analyse (défaut: le plus récent de exercises/).",
     )
     return parser.parse_args()
 
@@ -45,10 +46,10 @@ def read_front_matter(path: Path) -> dict:
 
 
 def find_latest_analysis() -> Path:
-    sessions = c.REPO_ROOT / "sessions"
-    candidates = sorted(sessions.glob("*-analysis.md"))
+    exercises_dir = c.REPO_ROOT / "exercises"
+    candidates = sorted(exercises_dir.glob("*/analysis.md"))
     if not candidates:
-        raise FileNotFoundError("Aucun fichier sessions/*-analysis.md trouvé")
+        raise FileNotFoundError("Aucun fichier exercises/*/analysis.md trouvé")
     return candidates[-1]
 
 

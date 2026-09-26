@@ -8,18 +8,32 @@ DevOpsForge remplace les flashcards statiques par des **exercices de code multi-
 
 | Repo | Visibilité | Rôle |
 |---|---|---|
-| `devopsforge` (ce repo) | public | Processus complet : workflows, prompts, scripts, sessions (exercices/soumissions/analyses), specs. Transparence pour les recruteurs. |
+| `devopsforge` (ce repo) | public | Processus complet : workflows, prompts, scripts, exercices, specs. Transparence pour les recruteurs. |
 | `devopsforge-profile` | privé | Uniquement les données de maîtrise : `profile/*.yaml`, `dues.yaml`, `errors.log`. |
 
 Les workflows publics lisent/écrivent le profil privé via `GH_TOKEN` (cross-repo). Le rapport d'analyse par exercice (scores, anti-patterns) est public ; seul le profil cumulé reste privé.
+
+## Structure d'un exercice
+
+```
+exercises/
+└── 001-bash_scripting/      # <NNN>-<notion principale>
+    ├── exercise.md          # généré par le bot (l'énoncé)
+    ├── code/                # TON code (par défaut ; sinon suis les consignes de l'exercice)
+    │   └── logscope.sh
+    ├── submission.md        # TON auto-évaluation (déclenche l'analyse)
+    └── analysis.md          # généré par le bot (scores + feedback)
+```
+
+Chaque exercice est auto-contenu : un dossier numéroté (`001`, `002`…) nommé d'après sa notion principale. Un recruteur voit d'un coup d'œil combien d'exercices tu as faits et sur quelles notions.
 
 ## Cycle de fonctionnement
 
 Tout changement arrive sur `main` via **PR** (branche protégée : PR + 1 approbation + status checks).
 
-1. **Génération** — `generate-exercise.yml` (cron `0 6 * * 1-5` ou `workflow_dispatch`) lit `profile/`+`dues.yaml` du repo privé, produit `sessions/YYYY-MM-DD-exercise.md` via un LLM, puis ouvre une PR `bot/exercise-*`.
-2. **Soumission** — tu résous l'exercice, remplis l'auto-évaluation dans `sessions/YYYY-MM-DD-submission.md`, puis ouvres une PR vers `main`.
-3. **Analyse** — `analyze-session.yml` (`pull_request` sur `**-submission.md`) lance `flake8`/`shellcheck` + détection anti-patterns + évaluation LLM, committe `sessions/YYYY-MM-DD-analysis.md` sur ta branche et **approuve** la PR.
+1. **Génération** — `generate-exercise.yml` (cron `0 6 * * 1-5` ou `workflow_dispatch`) lit `profile/`+`dues.yaml` du repo privé, détermine le prochain `NNN` et la notion prioritaire, génère `exercises/NNN-notion/exercise.md`, puis ouvre une PR `bot/exercise-*`.
+2. **Soumission** — tu résous l'exercice dans `exercises/NNN-notion/code/`, remplis l'auto-évaluation dans `submission.md`, et ouvres une PR vers `main`.
+3. **Analyse** — `analyze-session.yml` (`pull_request` sur `exercises/**/submission.md`) lance `shellcheck`/`flake8` sur tes fichiers, évalue via LLM, committe `analysis.md` et **approuve** la PR.
 4. **Mise à jour** — au merge, `update-profile.yml` (`push` sur `main`) clone le repo privé, exécute `scripts/update_profile.py` (scores, `due_at`, `dues.yaml`) et pousse le résultat.
 5. *(Différé)* **Oubli** — `scripts/apply_decay.py` décroîtra les scores (`score * exp(-rate * jours)`), nice-to-have non câblé.
 
@@ -30,7 +44,7 @@ Tout changement arrive sur `main` via **PR** (branche protégée : PR + 1 approb
 .github/prompts/    # prompts LLM (génération, évaluation)
 scripts/            # update_profile.py, select_due_notions.py (+ apply_decay.py différé)
 config/             # thresholds, grading_weights, forgetting, agent (routage LLM)
-sessions/           # YYYY-MM-DD-{exercise,submission,analysis}.md (public)
+exercises/          # NNN-notion/{exercise,submission,analysis}.md + code/
 specs/              # spécification SpecKit du MVP
 tests/              # fixtures
 journal.md          # journal de progression
@@ -42,7 +56,7 @@ journal.md          # journal de progression
 |---|---|---|
 | `AI_GATEWAY_API_KEY` | secret | Clé de la passerelle IA OpenAI-compatible |
 | `AI_GATEWAY_BASE_URL` | variable | URL de base (ex. `https://api.deepseek.com/v1`) |
-| `GH_TOKEN` | secret | Token fine-grained sur **compte séparé**, accès aux 2 repos : `Contents: R/W` + `Pull requests: R/W` |
+| `GH_TOKEN` | secret | Token (classic) sur **compte séparé**, accès aux 2 repos : `repo` (Contents + Pull requests) |
 | `PROJECT_STATE` | variable | État du projet fil rouge (placeholder au MVP) |
 
 Les modèles par tâche sont dans `config/agent.yaml`.
@@ -67,9 +81,11 @@ Le repo privé `devopsforge-profile` n'a pas de protection : le bot pousse direc
 
 ## Soumettre un exercice
 
-1. Créer une branche, ajouter `sessions/YYYY-MM-DD-submission.md` (code + auto-évaluation), ouvrir une PR vers `main`.
-2. Le bot lance lint + analyse, committe `analysis.md`, et approuve la PR.
-3. **Merger** : le profil privé se met à jour automatiquement.
+1. Créer une branche.
+2. Écrire ton code dans `exercises/NNN-notion/code/` (ou là où l'énoncé l'exige).
+3. Remplir `exercises/NNN-notion/submission.md` (auto-évaluation : ce qui a été fait, difficultés, confiance par notion).
+4. Ouvrir une PR vers `main` → le bot linte, analyse, committe `analysis.md` et approuve.
+5. **Merger** : le profil privé se met à jour automatiquement.
 
 ## Développement local
 
@@ -81,7 +97,7 @@ git clone git@github.com:M-Boiguille/devopsforge-profile.git
 cd devopsforge
 export PROFILE_REPO_PATH=/chemin/vers/devopsforge-profile
 pip install pyyaml
-python3 scripts/update_profile.py --analysis tests/fixtures/analysis-sample.md
+python3 scripts/update_profile.py --analysis exercises/001-bash_scripting/analysis.md
 python3 scripts/select_due_notions.py --limit 3
 ```
 

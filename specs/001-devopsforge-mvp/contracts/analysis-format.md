@@ -1,4 +1,4 @@
-# Contract: Format du rapport d'analyse (`sessions/YYYY-MM-DD-analysis.md`)
+# Contract: Format du rapport d'analyse (`exercises/NNN-notion/analysis.md`)
 
 Le rapport est un fichier Markdown dont le **front-matter YAML** (entre `---`) est machine-readable et consommé
 par `scripts/update_profile.py`. Le corps (après le second `---`) est libre, destiné à la lecture humaine et à
@@ -9,8 +9,8 @@ OpenClaw (différé).
 ```yaml
 ---
 date: "2026-09-25"                 # date de l'analyse, YYYY-MM-DD
-exercise_file: "sessions/2026-09-25-exercise.md"
-submission_file: "sessions/2026-09-25-submission.md"
+exercise_file: "exercises/001-bash_scripting/exercise.md"
+submission_file: "exercises/001-bash_scripting/submission.md"
 notions:                           # liste des notions évaluées
   - notion: bash_scripting
     scores:                        # bornés [0,1]

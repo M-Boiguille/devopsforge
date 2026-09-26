@@ -70,7 +70,7 @@ profile/
 └── transversal.yaml    # placeholder
 dues.yaml
 errors.log
-sessions/.gitkeep
+exercises/.gitkeep
 journal.md
 config/
 ├── agent.yaml

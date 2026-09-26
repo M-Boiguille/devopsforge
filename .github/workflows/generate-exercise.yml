@@ -42,7 +42,7 @@ jobs:
           python3 - <<'PY'
           import glob
           import os
-          from datetime import date
+          import re
 
           import requests
           import yaml
@@ -67,7 +67,34 @@ jobs:
 
           dues = load_yaml(os.path.join(profile_repo, "dues.yaml"))
 
-          exercises = sorted(glob.glob(os.path.join(repo, "sessions", "*-exercise.md")))
+          # Notion principale : première notion due, sinon première notion du profil.
+          priority_order = {"high": 0, "medium": 1, "low": 2}
+          due_list = sorted(
+              dues.get("dues", []) or [],
+              key=lambda d: (priority_order.get(d.get("priority", "low"), 2), d.get("due_since", "")),
+          )
+          primary = due_list[0]["notion"] if due_list else None
+          if not primary:
+              for fname in sorted(profiles):
+                  notions = profiles[fname].get("notions", {}) or {}
+                  if notions:
+                      primary = sorted(notions)[0]
+                      break
+          primary = primary or "exercice"
+
+          # Numéro séquentiel sur 3 chiffres.
+          exercises_dir = os.path.join(repo, "exercises")
+          os.makedirs(exercises_dir, exist_ok=True)
+          max_n = 0
+          for name in os.listdir(exercises_dir):
+              m = re.match(r"^(\d{3})-", name)
+              if m:
+                  max_n = max(max_n, int(m.group(1)))
+          dir_name = f"{max_n + 1:03d}-{primary}"
+          out_dir = os.path.join(exercises_dir, dir_name)
+          os.makedirs(out_dir, exist_ok=True)
+
+          exercises = sorted(glob.glob(os.path.join(repo, "exercises", "*", "exercise.md")))
           last_exercise = read(os.path.relpath(exercises[-1], repo)) if exercises else "(aucun)"
 
           template = read(".github/prompts/generate-exercise.md")
@@ -100,11 +127,16 @@ jobs:
           resp.raise_for_status()
           content = resp.json()["choices"][0]["message"]["content"]
 
-          filename = f"{date.today().isoformat()}-exercise.md"
-          with open(os.path.join(repo, "sessions", filename), "w", encoding="utf-8") as fh:
+          with open(os.path.join(out_dir, "exercise.md"), "w", encoding="utf-8") as fh:
               fh.write(content.rstrip() + "\n")
 
-          print(f"::notice::Exercise written to sessions/{filename}")
+          # Scaffold par défaut : sous-dossier `code/` pour les fichiers de travail.
+          code_dir = os.path.join(out_dir, "code")
+          os.makedirs(code_dir, exist_ok=True)
+          with open(os.path.join(code_dir, ".gitkeep"), "w", encoding="utf-8") as fh:
+              pass
+
+          print(f"::notice::Exercise written to exercises/{dir_name}/exercise.md")
           PY
 
       - name: Open PR
@@ -115,13 +147,13 @@ jobs:
           git config user.name "devopsforge-bot"
           git config user.email "bot@devopsforge.local"
           git checkout -b "$BRANCH"
-          git add sessions/
+          git add exercises/
           if git diff --cached --quiet; then
             echo "No changes to commit"
             exit 0
           fi
-          git commit -m "feat: generate exercise of the day"
+          git commit -m "feat: generate exercise"
           git push -u origin "$BRANCH"
           gh pr create --base main --head "$BRANCH" \
-            --title "Exercice du $(date +%F)" \
-            --body "Généré automatiquement par DevOpsForge. À résoudre puis à soumettre via une PR \`sessions/YYYY-MM-DD-submission.md\`."
+            --title "Exercice $(ls exercises/ | sort | tail -1)" \
+            --body "Généré automatiquement par DevOpsForge. À résoudre dans \`exercises/$(ls exercises/ | sort | tail -1)/code/\` puis à soumettre via \`submission.md\` (auto-évaluation) dans le même dossier."

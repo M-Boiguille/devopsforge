@@ -13,7 +13,7 @@
 ### User Story 1 - Générer un exercice ciblé (Priority: P1)
 
 L'apprenant déclenche (manuellement ou par cron) la génération d'un exercice de 30-60 minutes qui intègre
-les notions fragiles détectées dans son profil, sous forme d'un fichier `sessions/YYYY-MM-DD-exercise.md`.
+les notions fragiles détectées dans son profil, sous forme d'un fichier `exercises/NNN-notion/exercise.md`.
 
 **Why this priority**: C'est le point d'entrée du cycle. Sans exercice généré, rien d'autre ne peut se produire.
 
@@ -22,15 +22,15 @@ titre, contexte, objectifs, instructions, ressource, grille de notation et crit�
 
 **Acceptance Scenarios**:
 
-1. **Given** un profil avec des notions dues, **When** le workflow `generate-exercise` est déclenché, **Then** un fichier `sessions/YYYY-MM-DD-exercise.md` est créé et committé, intégrant au moins 2 notions dues.
+1. **Given** un profil avec des notions dues, **When** le workflow `generate-exercise` est déclenché, **Then** un fichier `exercises/NNN-notion/exercise.md` est créé et committé, intégrant au moins 2 notions dues.
 2. **Given** aucun `dues.yaml` renseigné, **When** le workflow est déclenché, **Then** un exercice sur une notion existante du profil est généré (pas de crash).
 
 ---
 
 ### User Story 2 - Analyser une soumission (Priority: P1)
 
-L'apprenant résout l'exercice, remplit une fiche d'auto-évaluation, puis pousse `sessions/YYYY-MM-DD-submission.md`.
-Le système analyse la soumission (lint, tests, anti-patterns) et écrit un rapport structuré `sessions/YYYY-MM-DD-analysis.md`.
+L'apprenant résout l'exercice, remplit une fiche d'auto-évaluation, puis pousse `exercises/NNN-notion/submission.md`.
+Le système analyse la soumission (lint, tests, anti-patterns) et écrit un rapport structuré `exercises/NNN-notion/analysis.md`.
 
 **Why this priority**: L'analyse produit la matière première (scores par dimension) qui alimente le profil.
 

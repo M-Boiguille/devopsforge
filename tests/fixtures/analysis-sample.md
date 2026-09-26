@@ -1,7 +1,7 @@
 ---
 date: "2026-09-25"
-exercise_file: "sessions/2026-09-25-exercise.md"
-submission_file: "sessions/2026-09-25-submission.md"
+exercise_file: "exercises/001-bash_scripting/exercise.md"
+submission_file: "exercises/001-bash_scripting/submission.md"
 notions:
   - notion: bash_scripting
     scores:

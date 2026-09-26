@@ -3,7 +3,7 @@
 - [x] T1 Constitution : écrire `.specify/memory/constitution.md` (principes DevOpsForge)
 - [x] T2 Config : `config/thresholds.yaml`, `grading_weights.yaml`, `forgetting.yaml`, `agent.yaml`
 - [x] T3 Profil : `profile/linux.yaml` (bash_scripting, file_parsing) + 6 placeholders de domaine
-- [x] T4 Données : `dues.yaml` vide, `errors.log`, `sessions/.gitkeep`, `journal.md`
+- [x] T4 Données : `dues.yaml` vide, `errors.log`, `exercises/.gitkeep`, `journal.md`
 - [x] T5 Script `scripts/update_profile.py` (parse front-matter, MAJ profil, due_at Ebbinghaus, dues.yaml)
 - [x] T6 Script `scripts/select_due_notions.py` (tri priorité + ancienneté)
 - [x] T7 Workflow `generate-exercise.yml` (dispatch + cron, LLM Flash, PR bot)

@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "sessions/**-analysis.md"
+      - "exercises/**/analysis.md"
   workflow_dispatch:
 
 permissions:

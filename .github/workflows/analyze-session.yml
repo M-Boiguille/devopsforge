@@ -3,7 +3,7 @@ name: analyze-session
 on:
   pull_request:
     paths:
-      - "sessions/**-submission.md"
+      - "exercises/**/submission.md"
 
 permissions:
   contents: write
@@ -18,43 +18,17 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
       - name: Install linters
         run: |
           pip install flake8
           sudo apt-get update -qq && sudo apt-get install -y shellcheck
 
-      - name: Extract code blocks
-        run: |
-          python3 - <<'PY'
-          import glob
-          import re
-          from pathlib import Path
-
-          subs = sorted(glob.glob("sessions/*-submission.md"))
-          if not subs:
-              raise SystemExit("No submission found")
-
-          out = Path("/tmp/lint")
-          out.mkdir(exist_ok=True)
-          text = Path(subs[-1]).read_text(encoding="utf-8")
-          count = 0
-          for m in re.finditer(r"```(python|bash|sh)\s*\n(.*?)```", text, re.DOTALL):
-              lang, code = m.group(1), m.group(2)
-              ext = "py" if lang == "python" else "sh"
-              count += 1
-              (out / f"block_{count}.{ext}").write_text(code, encoding="utf-8")
-          print(f"::notice::extracted {count} code block(s)")
-          PY
-
       - name: Lint (non-blocking)
         run: |
-          flake8 /tmp/lint --max-line-length=100 || true
-          for f in /tmp/lint/*.sh; do shellcheck "$f" || true; done
+          DIR=$(dirname "$(find exercises -name 'submission.md' | sort | tail -1)")
+          echo "Lint sur $DIR"
+          find "$DIR" -name '*.sh' -print0 | xargs -0 -r shellcheck || true
+          find "$DIR" -name '*.py' -print0 | xargs -0 -r flake8 --max-line-length=100 || true
 
   evaluate:
     needs: lint
@@ -78,29 +52,15 @@ jobs:
 
       - name: Lint report
         run: |
-          python3 - <<'PY'
-          import glob
-          import re
-          from pathlib import Path
-
-          subs = sorted(glob.glob("sessions/*-submission.md"))
-          text = Path(subs[-1]).read_text(encoding="utf-8")
-          out = Path("/tmp/lint")
-          out.mkdir(exist_ok=True)
-          count = 0
-          for m in re.finditer(r"```(python|bash|sh)\s*\n(.*?)```", text, re.DOTALL):
-              lang, code = m.group(1), m.group(2)
-              ext = "py" if lang == "python" else "sh"
-              count += 1
-              (out / f"block_{count}.{ext}").write_text(code, encoding="utf-8")
-          PY
+          DIR=$(dirname "$(find exercises -name 'submission.md' | sort | tail -1)")
+          echo "EXERCISE_DIR=$DIR" >> "$GITHUB_ENV"
           {
-            echo "=== flake8 ==="
-            flake8 /tmp/lint --max-line-length=100 || true
             echo "=== shellcheck ==="
-            for f in /tmp/lint/*.sh; do shellcheck "$f" || true; done
+            find "$DIR" -name '*.sh' -print0 | xargs -0 -r shellcheck || true
+            echo "=== flake8 ==="
+            find "$DIR" -name '*.py' -print0 | xargs -0 -r flake8 --max-line-length=100 || true
           } > /tmp/lint-report.txt || true
-          echo "lint report captured"
+          echo "lint report captured for $DIR"
 
       - name: Evaluate submission
         env:
@@ -108,7 +68,6 @@ jobs:
           AI_GATEWAY_BASE_URL: ${{ vars.AI_GATEWAY_BASE_URL }}
         run: |
           python3 - <<'PY'
-          import glob
           import json
           import os
           import re
@@ -119,42 +78,55 @@ jobs:
           import yaml
 
           repo = os.environ["GITHUB_WORKSPACE"]
+          dir_path = os.path.join(repo, os.environ["EXERCISE_DIR"])
 
           def load(rel):
               with open(os.path.join(repo, rel), encoding="utf-8") as fh:
                   return yaml.safe_load(fh) or {}
 
-          def read(rel):
-              with open(os.path.join(repo, rel), encoding="utf-8") as fh:
-                  return fh.read()
+          def read(path):
+              try:
+                  with open(path, encoding="utf-8") as fh:
+                      return fh.read()
+              except OSError:
+                  return "(absent)"
 
           agent = load("config/agent.yaml")
           model = agent["models"]["evaluation"]["model"]
           thresholds = load("config/thresholds.yaml")
           patterns = thresholds.get("review", {}).get("flag_patterns", [])
 
-          submissions = sorted(glob.glob(os.path.join(repo, "sessions", "*-submission.md")))
-          if not submissions:
-              sys.exit("No submission found")
-          submission = submissions[-1]
-          prefix = os.path.basename(submission).split("-submission.md")[0]
-          submission_text = read(os.path.relpath(submission, repo))
+          exercise_text = read(os.path.join(dir_path, "exercise.md"))
+          submission_text = read(os.path.join(dir_path, "submission.md"))
 
-          exercises = sorted(glob.glob(os.path.join(repo, "sessions", "*-exercise.md")))
-          exercise_text = read(os.path.relpath(exercises[-1], repo)) if exercises else "(aucun)"
+          # Collecte des fichiers de code (récursif, hors markdown).
+          code_parts = []
+          for root, dirs, files in os.walk(dir_path):
+              dirs[:] = [d for d in dirs if not d.startswith(".")]
+              for f in sorted(files):
+                  if f.endswith(".md"):
+                      continue
+                  p = os.path.join(root, f)
+                  try:
+                      content = read(p)
+                  except OSError:
+                      continue
+                  code_parts.append(f"### {os.path.relpath(p, dir_path)}\n{content}")
+          code_content = "\n\n".join(code_parts) or "(aucun fichier de code)"
 
-          detected = [pat for pat in patterns if re.search(pat, submission_text, re.IGNORECASE)]
-          lint_report = Path("/tmp/lint-report.txt").read_text(encoding="utf-8") if Path("/tmp/lint-report.txt").exists() else "(vide)"
+          haystack = code_content + "\n" + submission_text
+          detected = [pat for pat in patterns if re.search(pat, haystack, re.IGNORECASE)]
+          lint_report = read("/tmp/lint-report.txt")
 
           weights = load("config/grading_weights.yaml")
-          errors_log = read("errors.log") if os.path.exists(os.path.join(repo, "errors.log")) else "(vide)"
+          errors_log = read(os.path.join(repo, "errors.log"))
 
-          template = read(".github/prompts/evaluate-submission.md")
+          template = read(os.path.join(repo, ".github/prompts/evaluate-submission.md"))
           user_prompt = (
               template
               .replace("{exercise}", exercise_text)
-              .replace("{submission}", submission_text)
-              .replace("{self_evaluation}", "(auto-évaluation incluse dans la soumission)")
+              .replace("{submission}", code_content)
+              .replace("{self_evaluation}", submission_text)
               .replace("{grading_weights}", yaml.safe_dump(weights, allow_unicode=True, sort_keys=False))
               .replace("{errors_log}", errors_log)
               .replace("{anti_patterns_detected}", json.dumps(detected, ensure_ascii=False))
@@ -189,21 +161,20 @@ jobs:
           parsed = json.loads(extract_json(content))
           report = parsed.pop("report", "")
 
-          filename = f"{prefix}-analysis.md"
-          with open(os.path.join(repo, "sessions", filename), "w", encoding="utf-8") as fh:
+          with open(os.path.join(dir_path, "analysis.md"), "w", encoding="utf-8") as fh:
               fh.write("---\n")
               yaml.safe_dump(parsed, fh, allow_unicode=True, sort_keys=False, default_flow_style=False)
               fh.write("---\n")
               fh.write(report.rstrip() + "\n")
 
-          print(f"::notice::Analysis written to sessions/{filename}")
+          print(f"::notice::Analysis written to {os.environ['EXERCISE_DIR']}/analysis.md")
           PY
 
       - name: Commit analysis to PR branch
         run: |
           git config user.name "devopsforge-bot"
           git config user.email "bot@devopsforge.local"
-          git add sessions/
+          git add exercises/
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
@@ -215,4 +186,4 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          gh pr review "${{ github.event.pull_request.number }}" --approve --body "Analyse automatique DevOpsForge terminée. Voir sessions/*-analysis.md."
+          gh pr review "${{ github.event.pull_request.number }}" --approve --body "Analyse automatique DevOpsForge terminée. Voir exercises/*/analysis.md."

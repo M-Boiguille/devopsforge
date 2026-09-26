@@ -27,12 +27,12 @@ future, `dues.yaml` reflète les notions fragiles, et `select_due_notions.py` im
 
 1. Configurer les secrets : `AI_GATEWAY_API_KEY`, `GH_TOKEN` (voir README).
 2. Actions → `generate-exercise` → Run workflow.
-3. Vérifier que `sessions/YYYY-MM-DD-exercise.md` est créé et committé.
+3. Vérifier que `exercises/NNN-notion/exercise.md` est créé et committé.
 
 ## 3. Soumettre et analyser
 
-1. Résoudre l'exercice, remplir l'auto-évaluation dans `sessions/YYYY-MM-DD-submission.md`.
-2. Pousser : le workflow `analyze-session` produit `sessions/YYYY-MM-DD-analysis.md`.
+1. Résoudre l'exercice, remplir l'auto-évaluation dans `exercises/NNN-notion/submission.md`.
+2. Pousser : le workflow `analyze-session` produit `exercises/NNN-notion/analysis.md`.
 3. Lancer `update-profile` (ou `scripts/update_profile.py` en local) pour mettre à jour le profil.
 
 ## 4. Vérifier

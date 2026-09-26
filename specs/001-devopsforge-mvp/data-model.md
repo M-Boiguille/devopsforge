@@ -29,7 +29,7 @@ Stockée dans `dues.yaml` sous la clé `dues`.
 
 ## Entity: Session
 
-Fichiers sous `sessions/` au format `YYYY-MM-DD-<type>.md`.
+Fichiers sous `exercises/` au format `YYYY-MM-DD-<type>.md`.
 
 - `YYYY-MM-DD-exercise.md` : exercice généré.
 - `YYYY-MM-DD-submission.md` : soumission + auto-évaluation de l'apprenant.
