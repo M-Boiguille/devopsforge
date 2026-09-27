@@ -1,7 +1,9 @@
 name: analyze-session
 
 on:
-  pull_request:
+  push:
+    branches:
+      - "**"
     paths:
       - "exercises/**/submission.md"
 
@@ -15,8 +17,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
 
       - name: Install linters
         run: |
@@ -37,7 +37,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
           token: ${{ secrets.GH_TOKEN }}
 
       - name: Setup Python
@@ -71,7 +70,6 @@ jobs:
           import json
           import os
           import re
-          import sys
           from datetime import date
           from pathlib import Path
 
@@ -100,7 +98,6 @@ jobs:
           exercise_text = read(os.path.join(dir_path, "exercise.md"))
           submission_text = read(os.path.join(dir_path, "submission.md"))
 
-          # Collecte des fichiers de code (récursif, hors markdown).
           code_parts = []
           for root, dirs, files in os.walk(dir_path):
               dirs[:] = [d for d in dirs if not d.startswith(".")]
@@ -161,7 +158,7 @@ jobs:
 
           parsed = json.loads(extract_json(content))
           report = parsed.pop("report", "")
-          parsed["date"] = date.today().isoformat()  # force la date du runner (fiable)
+          parsed["date"] = date.today().isoformat()
 
           with open(os.path.join(dir_path, "analysis.md"), "w", encoding="utf-8") as fh:
               fh.write("---\n")
@@ -172,7 +169,7 @@ jobs:
           print(f"::notice::Analysis written to {os.environ['EXERCISE_DIR']}/analysis.md")
           PY
 
-      - name: Commit analysis to PR branch
+      - name: Commit analysis
         run: |
           git config user.name "devopsforge-bot"
           git config user.email "bot@devopsforge.local"
@@ -181,11 +178,17 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "feat: analyze submission"
-            git push
+            git push origin "HEAD:$GITHUB_REF_NAME"
           fi
 
-      - name: Approve PR
+      - name: Notify on PR
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          gh pr review "${{ github.event.pull_request.number }}" --approve --body "Analyse automatique DevOpsForge terminée. Voir exercises/*/analysis.md." || echo "::warning::Approbation impossible (PR du bot ou déjà approuvée) — non bloquant."
+          PR=$(gh pr list --head "$GITHUB_REF_NAME" --state open --json number --jq '.[0].number' 2>/dev/null)
+          if [ -z "$PR" ]; then
+            echo "::warning::Aucune PR ouverte pour la branche $GITHUB_REF_NAME — pas de commentaire."
+            exit 0
+          fi
+          gh pr comment "$PR" --body "Analyse terminée : voir \`exercises/*/analysis.md\`." || echo "::warning::commentaire impossible"
+          gh pr review "$PR" --approve --body "Analyse automatique DevOpsForge terminée." || echo "::warning::approbation impossible (non bloquant)"
