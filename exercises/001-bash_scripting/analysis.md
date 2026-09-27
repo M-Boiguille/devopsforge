@@ -3,112 +3,130 @@ date: '2026-09-27'
 notions:
 - notion: bash_scripting
   scores:
-    connaissance: 0.5
-    implementation: 0.7
-    debug: 0.6
-    explication: 0.3
+    connaissance: 0.4
+    implementation: 0.5
+    debug: 0.5
+    explication: 0.4
     design: 0.7
-    securite: 0.7
-    performance: 0.8
+    securite: 0.8
+    performance: 0.7
   anti_patterns:
-  - manual_option_parsing_instead_of_getopts
-  - missing_option_argument_value_check
+  - parsing_manuel_arguments
+  - non_conformite_format_sortie
+  - absence_validation_ligne
   strengths:
-  - Fonctions bien séparées (usage, parse_args, validate_args, analyze_text, analyze_json,
-    main)
-  - set -euo pipefail et validation des entiers
+  - decoupage_fonctions
+  - utilisation_set_euo_pipefail
+  - quoting_systematique
   weaknesses:
-  - N'utilise pas getopts comme demandé
-  - Ne gère pas les options longues de forme --opt=valeur
-  - Pas de vérification que la valeur d'option ne commence pas par un tiret
+  - pas_de_getopts
+  - sortie_texte_non_conforme
+  - pas_de_gestion_ligne_malformee
 - notion: file_parsing
   scores:
-    connaissance: 0.6
+    connaissance: 0.4
     implementation: 0.5
-    debug: 0.6
+    debug: 0.3
     explication: 0.3
-    design: 0.7
+    design: 0.6
     securite: 0.7
-    performance: 0.8
+    performance: 0.5
   anti_patterns:
-  - output_text_format_missing_ranking_numbers
-  - no_demonstration_of_cut_sort_uniq_or_grep
+  - pas_de_grep
+  - pas_de_cut_sort_uniq
+  - jq_slurp_chargement_complet
   strengths:
-  - Utilisation d'un seul awk avec tableaux et END
-  - jq pour JSON avec sort_by, group_by
+  - utilisation_awk_un_seul_passage
+  - json_valide_avec_jq
+  - pas_d_injection_shell
   weaknesses:
-  - Sortie texte non conforme (pas de numérotation des endpoints)
-  - Pas d'utilisation de cut/sort/uniq/grep pour l'extraction, contrairement aux objectifs
+  - non_utilisation_grep
+  - non_gestion_entrees_invalides
+  - performance_json_mediocre
 - notion: bash_scripting_advanced
   scores:
-    connaissance: 0.2
+    connaissance: 0.3
     implementation: 0.4
     debug: 0.4
-    explication: 0.3
-    design: 0.7
-    securite: 0.6
-    performance: 0.8
+    explication: 0.2
+    design: 0.6
+    securite: 0.7
+    performance: 0.5
   anti_patterns:
-  - no_trap_for_cleanup
-  - shellcheck_result_not_included_in_submission
+  - absence_trap
+  - absence_gestion_signaux
+  - absence_notes_shellcheck
   strengths:
-  - Script linté sans warning (selon l'auto-évaluation)
-  - Pas d'utilisation de eval ou de commandes dangereuses
+  - shellcheck_propre
+  - code_lisible
   weaknesses:
-  - Aucun trap de nettoyage
-  - Pas de fichier temporaire ni gestion des signaux
-  - NOTES.md manquant pour expliquer les codes ShellCheck
+  - pas_de_trap
+  - pas_de_notes_explicatives
+  - pas_de_gestion_cas_limites_avancee
 calibration:
   overconfidence: true
   underconfidence: false
-  notes: L'auto-évaluation coche toutes les cases de réussite, mais la sortie texte
-    ne respecte pas exactement le format demandé (numérotation manquante), NOTES.md
-    est absent, et getopts n'est pas utilisé. L'étudiant reconnaît des difficultés
-    mais surestime la conformité globale.
+  notes: L'auto-évaluation qualitative surestime la conformité (getopts, grep, format
+    exact) et la robustesse (cas limites). L'étudiant mentionne des points forts mais
+    ne démontre pas toutes les exigences.
 ---
-# Évaluation LogSentry — Incrément 1
+# Rapport d'évaluation LogSentry Incrément 1
 
 ## Scores par dimension (moyenne sur les notions)
-- Connaissance : 0.43 (bash_scripting 0.5, file_parsing 0.6, bash_scripting_advanced 0.2)
-- Implémentation : 0.53 (0.7, 0.5, 0.4)
-- Debug : 0.53 (0.6, 0.6, 0.4)
-- Explication : 0.30 (0.3, 0.3, 0.3)
-- Design : 0.70 (0.7, 0.7, 0.7)
-- Sécurité : 0.67 (0.7, 0.7, 0.6)
-- Performance : 0.80 (0.8, 0.8, 0.8)
 
-## Calibration
-L'auto-évaluation surestime la conformité : elle affirme que tous les critères sont remplis, mais la sortie texte ne respecte pas exactement la forme (numéros manquants), le fichier tests/NOTES.md est absent, et getopts n'est pas utilisé. Des difficultés sont mentionnées (jq, syntaxe Bash), mais l'étudiant ne les relie pas aux écarts constatés.
+| Dimension | Score moyen | Commentaire |
+|-----------|-------------|-------------|
+| Connaissance | 0.37 | Comprend les outils mais ne démontre pas getopts ni grep. |
+| Implémentation | 0.47 | Script fonctionnel mais sortie non conforme, exit codes partiels. |
+| Debug / Robustesse | 0.40 | Gère les cas de base, ignore lignes malformées et JSONL invalide. |
+| Explication | 0.30 | ADR présent mais pas de NOTES.md, explications limitées. |
+| Design / Lisibilité | 0.63 | Bon découpage en fonctions, main() clair. |
+| Sécurité | 0.73 | Quoting systématique, pas d'eval, pas d'injection. |
+| Performance | 0.57 | awk unique et LC_ALL=C, mais jq -s charge tout en mémoire. |
+
+## Analyse de calibration
+
+**Overconfidence détectée** : L'auto-évaluation indique « Bonne aisance », « Respect strict des codes de retour » et « Equivalance stricte des métriques ». Or le code ne respecte pas l'utilisation imposée de `getopts`, n'utilise pas `grep`, et la sortie texte ne correspond pas au format demandé (numérotation absente, espacements différents). De plus, la gestion des cas limites (ligne malformée, entrée JSONL invalide) est absente. L'étudiant surestime sa conformité aux exigences.
 
 ## Anti-patterns détectés
-- Parsing manuel des options au lieu de getopts ; risque de confusion si une valeur d'option commence par '-'.
-- Sortie texte non conforme : pas de numérotation des endpoints.
-- Absence de trap de nettoyage (non critique car pas de fichier temporaire, mais objectif non démontré).
-- Pas de démonstration des outils cut/sort/uniq/grep.
-- Pas de NOTES.md avec les explications ShellCheck.
+
+- **Parsing manuel des arguments** : la boucle `while` + `case` remplace `getopts`, pourtant l'objectif 1 demandait spécifiquement cette notion.
+- **Non-conformité du format de sortie texte** : absence de numérotation des endpoints, espacements non conformes.
+- **Absence de validation des lignes d'entrée** : aucun contrôle du nombre de champs ou de la validité JSONL, ce qui peut produire des résultats erronés silencieusement.
+- **Jq en mode slurp** : `jq -s` charge tout le fichier en mémoire, ce qui nuit à la performance pour de gros volumes.
+- **Absence de grep** : l'objectif 5 exigeait l'utilisation de `grep` et d'expressions régulières pour extraction/validation ; aucun `grep` n'est présent.
+- **Pas de cut/sort/uniq** : l'objectif 7 demandait l'utilisation de ces outils pour le top endpoints et le dédoublonnage IP ; tout est fait en awk, ce qui est acceptable mais ne démontre pas la compétence.
 
 ## Points forts
-- Architecture propre avec fonctions (usage, parse_args, validate_args, analyze_text, analyze_json, main).
-- set -euo pipefail et validation des entiers.
-- Un seul passage awk pour le mode texte, LC_ALL=C, pas de fork inutile.
-- Sortie JSON valide et structurée.
-- Quoting globalement correct, pas d'eval.
+
+- Script structuré avec des fonctions dédiées (`parse_args`, `validate_args`, `analyze_text`, `analyze_json`, `main`).
+- Utilisation correcte de `set -euo pipefail` et de `IFS=$'\n\t'`.
+- Quoting systématique des variables, aucun `eval`.
+- Mode JSON produit un JSON valide avec les clés demandées.
+- Un seul passage awk pour le mode texte.
+- Shellcheck sans warning (présumé).
 
 ## Points faibles
-- Non-respect du format de sortie texte (numéros).
-- Utilisation de la boucle while/case au lieu de getopts comme demandé.
-- Pas de trap ni gestion des signaux.
-- Manque NOTES.md et explications des choix.
-- Pas de tests automatisés (bats) ni de preuve des 4 exit codes.
+
+- Non-respect de `getopts` pour le parsing des arguments.
+- Sortie texte non conforme au modèle attendu.
+- Pas de gestion des lignes malformées (texte ou JSONL).
+- Pas de `grep` ni de `cut/sort/uniq`.
+- Pas de fichier NOTES.md expliquant les codes ShellCheck.
+- Utilisation de `jq -s` au lieu d'un streaming, impact performance.
+- Pas de trap ni de gestion de signaux (même si pas de fichier temporaire).
 
 ## Recommandations
-1. Revoir le format de sortie attendu et ajouter la numérotation `1.`, `2.`, etc.
-2. Implémenter getopts pour les options courtes, et éventuellement une extension pour les options longues (ou utiliser un parseur externe si getopts est insuffisant, mais justifier).
-3. Ajouter un trap `trap 'rm -f "$tmpfile"' EXIT INT TERM` même sans fichier temporaire pour la forme, ou créer un fichier temporaire pour la sortie.
-4. Fournir tests/NOTES.md avec les explications demandées sur les codes ShellCheck et getopts.
-5. Ajouter des tests automatisés (bats) pour valider les exit codes et les sorties.
-6. Pour file_parsing, démontrer l'usage de grep/cut/sort/uniq dans des fonctions auxiliaires si besoin.
-7. Améliorer la robustesse du parsing des options (vérifier que les valeurs ne commencent pas par un tiret, supporter `--opt=value`).
 
-## Note globale indicative
-La soumission est fonctionnelle mais incomplète par rapport aux exigences. Des correctifs sont nécessaires pour valider les notions cibles.
+1. **Lecture ciblée** : Revoir le manuel Bash sur `getopts` et implémenter les options longues avec `getopts` (via astuce `-` ou `getopt` externe) pour valider la notion.
+2. **Corriger la sortie texte** : respecter scrupuleusement le format demandé (numérotation, espacements) en utilisant `printf` avec padding.
+3. **Ajouter la validation des lignes** : en mode texte, vérifier le nombre de champs avec `NF == 6` ; en mode JSONL, utiliser `jq -e 'type == "object"'` ou équivalent pour rejeter les lignes invalides.
+4. **Utiliser grep** : pour la détection des erreurs 5xx ou pour valider le format des lignes avant awk, afin de démontrer la compétence.
+5. **Remplacer `jq -s`** : utiliser `jq -c '.'` en streaming avec agrégation, ou passer par un script awk si possible, pour améliorer la performance.
+6. **Créer NOTES.md** : expliquer les codes ShellCheck demandés (SC2086, SC2046, SC2181, SC2002, SC2164).
+7. **Gérer les signaux** : ajouter un `trap` de nettoyage même si pas de fichier temporaire, pour la robustesse.
+8. **Revoir l'auto-évaluation** : être plus objectif sur les écarts entre les exigences et la réalisation.
+
+## Conclusion
+
+Le script est une base fonctionnelle mais ne répond que partiellement aux objectifs pédagogiques. Les notions `bash_scripting_advanced` et `file_parsing` sont à consolider, notamment sur l'utilisation idiomatique des outils imposés. Une itération est nécessaire pour valider l'incrément.
