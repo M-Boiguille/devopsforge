@@ -3,107 +3,116 @@ date: '2026-09-27'
 notions:
 - notion: bash_scripting
   scores:
-    connaissance: 0.6
-    implementation: 0.7
-    debug: 0.7
+    connaissance: 0.75
+    implementation: 0.85
+    debug: 0.65
     explication: 0.4
-    design: 0.8
-    securite: 0.8
-    performance: 0.7
+    design: 0.9
+    securite: 0.75
+    performance: 0.8
   anti_patterns:
-  - no_getopts_usage
-  - manual_arg_parsing
+  - getopts_avoided
+  - no_trap_cleanup
+  - regex_allows_zero
   strengths:
-  - good_function_decomposition
-  - set_euo_pipefail
-  - input_validation_basics
+  - bon découpage en fonctions
+  - validation des arguments complète
+  - exit codes respectés
+  - set -euo pipefail utilisé
   weaknesses:
-  - getopts_not_used
-  - missing_NOTES_md
-  - no_line_validation
+  - pas d'utilisation de getopts
+  - pas de trap de nettoyage
+  - validation des entiers accepte 0
+  - pas de test de dépassement d'arguments
 - notion: file_parsing
   scores:
-    connaissance: 0.7
-    implementation: 0.7
-    debug: 0.6
-    explication: 0.5
-    design: 0.7
-    securite: 0.8
-    performance: 0.6
+    connaissance: 0.55
+    implementation: 0.65
+    debug: 0.4
+    explication: 0.4
+    design: 0.6
+    securite: 0.6
+    performance: 0.55
   anti_patterns:
-  - jq_slurp_memory_inefficient
-  - no_format_detection
+  - jq_slurp_memory
+  - no_input_validation
+  - no_lc_all_c
+  - missing_grep_cut_uniq
   strengths:
-  - single_pass_awk_text
-  - jq_output_valid
-  - sort_pipe_ok
+  - awk un seul passage avec tableaux
+  - calcul correct des métriques
+  - jq produit JSON valide
   weaknesses:
-  - text_mode_fails_on_jsonl
-  - no_malformed_line_handling
-  - slurp_not_streaming
+  - pas de validation du format texte
+  - sortie texte non conforme
+  - pas de LC_ALL=C
+  - pas d'utilisation de grep/cut/uniq
+  - jq -s charge tout en mémoire
 - notion: bash_scripting_advanced
   scores:
-    connaissance: 0.5
-    implementation: 0.7
-    debug: 0.6
-    explication: 0.3
-    design: 0.6
-    securite: 0.7
+    connaissance: 0.6
+    implementation: 0.5
+    debug: 0.3
+    explication: 0.4
+    design: 0.5
+    securite: 0.5
     performance: 0.5
   anti_patterns:
-  - missing_shellcheck_notes
+  - no_trap_cleanup
+  - no_mktemp
   strengths:
-  - shellcheck_likely_clean
-  - no_eval
+  - shellcheck validé
+  - pas de fichier temporaire
   weaknesses:
-  - no_trap_used_even_if_not_needed
-  - notes_absent
+  - pas de trap de nettoyage
+  - pas de démonstration de mktemp
+  - pas de gestion de signaux
 calibration:
   overconfidence: true
   underconfidence: false
-  notes: Auto-évaluation déclare l'exercice complet et conforme, mais manque l'usage
-    de getopts exigé, le livrable tests/NOTES.md est absent, et le mode texte sur
-    JSONL produit des résultats erronés (0 erreur, latence 0). Cela indique une sur-confiance.
+  notes: L'auto-évaluation reconnaît des difficultés (jq, syntaxe) et semble réaliste,
+    mais est légèrement surconfiante sur la conformité de la sortie texte et la complétude
+    des livrables (NOTES.md absent).
 ---
-# Rapport d'évaluation — LogSentry Incrément 1
+# Évaluation LogSentry Incrément 1
 
-## Scores par dimension (moyenne pondérée)
-- Implémentation : 0.7
-- Connaissance : 0.6
-- Design : 0.7
-- Debug/robustesse : 0.65
-- Sécurité : 0.8
-- Explication : 0.4
-- Performance : 0.6
+## Scores par dimension
 
-## Analyse de calibration
-L'auto-évaluation est globalement sur-confidente. L'étudiant affirme avoir respecté strictement les codes de retour et l'équivalence des métriques, mais le mode texte appliqué à un fichier JSONL produit des données incorrectes (ex. 500 requêtes mais 0 erreurs, latence 0). De plus, l'usage de getopts (exigé dans les objectifs) est absent au profit d'un parsing manuel. Le livrable tests/NOTES.md demandé n'est pas fourni. La difficulté avec jq est reconnue, mais l'étudiant considère le travail terminé, ce qui révèle un excès de confiance.
+| Dimension | bash_scripting | file_parsing | bash_scripting_advanced |
+|-----------|----------------|--------------|------------------------|
+| Connaissance | 0.75 | 0.55 | 0.60 |
+| Implémentation | 0.85 | 0.65 | 0.50 |
+| Debug | 0.65 | 0.40 | 0.30 |
+| Explication | 0.40 | 0.40 | 0.40 |
+| Design | 0.90 | 0.60 | 0.50 |
+| Sécurité | 0.75 | 0.60 | 0.50 |
+| Performance | 0.80 | 0.55 | 0.50 |
+
+## Synthèse
+
+Points forts : structure claire, set -euo pipefail, validation des arguments, exit codes respectés, awk bien utilisé, jq fonctionnel.
+
+Points faibles : pas de NOTES.md, sortie texte non conforme, pas de validation des lignes, pas de trap, jq -s, pas de LC_ALL=C, pas de grep/cut/uniq.
+
+## Calibration
+
+L'auto-évaluation reconnaît des difficultés (jq, syntaxe) et semble réaliste, mais est légèrement surconfiante sur la conformité de la sortie texte et la complétude des livrables (NOTES.md absent).
 
 ## Anti-patterns détectés
-- Parsing manuel des arguments : getopts n'est pas utilisé malgré l'objectif explicite.
-- Slurp JSON avec jq -s : charge tout le fichier en mémoire, non adapté à de gros volumes.
-- Absence de validation de ligne : les lignes vides ou malformées sont comptées comme requêtes.
-- Pas de détection de format : exécuter -f text sur un JSONL produit une sortie incohérente sans avertissement.
-- Manque de tests automatisés : aucun fichier tests/test_logsentry.bats ni NOTES.md.
 
-## Points forts
-- Découpage fonctionnel clair (usage, parse_args, validate_args, analyze_text, analyze_json, main).
-- set -euo pipefail et validation des entrées de base.
-- Agrégation en un seul passage awk pour le mode texte, avec tri délégué via sort.
-- Quoting systématique, pas d'eval.
-- Sortie JSON valide et composable avec jq.
-
-## Points faibles
-- Non-respect de la consigne getopts (objectif n°1).
-- Gestion des cas limites insuffisante : lignes vides, JSON invalide, N > nombre d'endpoints.
-- Mode texte sur JSONL incohérent sans détection.
-- jq -s inefficace pour de grands fichiers.
-- Notes de lecture tests/NOTES.md absentes.
+- `jq --slurp` charge le fichier entier en mémoire, risque pour gros volumes.
+- Absence de validation du format des lignes texte : des lignes malformées faussent les métriques.
+- Absence de `LC_ALL=C` avant `sort`.
+- Validation `^[0-9]+$` accepte 0, non conforme à "entier positif".
+- Pas de `trap` de nettoyage (même si pas de fichier temporaire, la notion est attendue).
+- Script de génération `generate_dummy_logs.sh` utilise `/data/` au lieu de `data/`.
 
 ## Recommandations
-1. Revoir le parsing d'arguments : implémenter getopts pour les options courtes et une boucle complémentaire pour les longues.
-2. Ajouter la validation de format : détecter automatiquement JSON vs texte et refuser avec exit 3 si incohérent.
-3. Améliorer la robustesse : ignorer les lignes vides ou malformées, gérer top_n > nombre d'endpoints.
-4. Optimiser le JSON : utiliser jq en mode streaming (sans -s) avec reduce pour agréger sans tout charger.
-5. Fournir les livrables manquants : tests/NOTES.md et des tests automatisés.
-6. Vérifier l'équivalence texte/JSON sur des données identiques.
+
+1. Ajouter `tests/NOTES.md` avec explications shellcheck.
+2. Rendre la sortie texte exactement conforme (alignements, numéros).
+3. Valider les lignes texte avec une regex avant traitement (ou ignorer les lignes invalides).
+4. Utiliser `LC_ALL=C sort ...` pour performance.
+5. Implémenter un `trap` de nettoyage même si pas de temp file (ou justifier).
+6. Remplacer `jq -s` par une approche streaming (`jq -cn --stream` ou `jq -n '[inputs]'`) pour éviter la charge mémoire.
+7. Démontrer l'usage de `grep` et `cut`/`uniq` si l'objectif le demande.
