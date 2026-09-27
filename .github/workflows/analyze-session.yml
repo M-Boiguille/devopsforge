@@ -2,8 +2,8 @@ name: analyze-session
 
 on:
   push:
-    branches:
-      - "**"
+    branches-ignore:
+      - main
     paths:
       - "exercises/**/submission.md"
 
