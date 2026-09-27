@@ -96,3 +96,33 @@ Le script fonctionne localement, mais il lui manque principalement son **environ
 * gestion propre de `stdin` et des fichiers montés ;
 * tests exécutables dans le conteneur ;
 * build reproductible et idéalement automatisé par CI.
+
+---
+
+## Increment 2 — Docker
+
+### Étape 1 — Lecture guidée
+
+**exec form vs shell form :**
+- Shell form : `ENTRYPOINT logsentry.sh` → exécuté via `/bin/sh -c`, le shell devient PID 1, les signaux sont propagés au shell mais pas forcément au process enfant.
+- Exec form : `ENTRYPOINT ["/app/bin/logsentry.sh"]` → le script devient directement PID 1, reçoit SIGTERM/SIGINT directement, permet un arrêt propre et rapide.
+
+**PID 1 et propagation SIGTERM :**
+- En Docker, le process avec PID 1 reçoit les signaux système (SIGTERM de `docker stop`). Si PID 1 est un shell (shell form), il transmet mal ou pas les signaux aux enfants. Avec exec form + trap TERM dans le script, `docker stop` déclenche le trap → cleanup → exit 143 propre.
+
+**Pourquoi COPY avant RUN (cache de layers) :**
+- Docker cache chaque layer. Si `COPY` est après `RUN apk install`, toute modification du code source invalide le cache et force la réinstallation des dépendances. En copiant d'abord le code source, les layers d'installation (lent, stable) sont seules invalidées quand les dépendances changent.
+
+**Pourquoi `--chown` sur `COPY` plutôt qu'un `RUN chown` :**
+- `COPY --chown=sentry:sentry` fait le changement de propriétaire dans une seule layer, atomique. Un `RUN chown` créerait une layer intermédiaire où les fichiers sont root avant le chown, et cette layer intermédiaire persiste dans l'historique (les fichiers root restent accessibles en inspectant les layers). `--chown` sur COPY est aussi plus lisible.
+
+### Étape 5 — Résultats des tests
+
+| Test | Commande | Attendu | Obtenu |
+|------|----------|---------|--------|
+| Non-root effectif | `docker run --rm --entrypoint id logsentry:0.2.0` | `uid=10001(sentry)` | `uid=10001(sentry)` |
+| Volume absent | `docker run --rm logsentry:0.2.0 -i /nope.log` | exit **2** | exit **2** |
+| Format bidon | `docker run --rm logsentry:0.2.0 -f xml` | exit **3** | exit **3** |
+| Stdin vs fichier | `cat data/access.log \| docker run --rm -i logsentry:0.2.0 -f text -i -` | mêmes chiffres | 500 req, 121 erreurs, 595 ms — identiques |
+| Top > endpoints | `... -n 999` | pas de crash, moins de lignes | clampé automatiquement |
+| Taille image | `docker images logsentry:0.2.0` | < 30 MB | **11.8 MB** |
