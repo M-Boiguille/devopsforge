@@ -1,176 +1,155 @@
 ---
-date: '2026-09-27'
+date: '2025-04-02'
 notions:
-- notion: bash_cli_parsing
+- notion: bash_scripting
   scores:
     connaissance: 0.8
     implementation: 0.7
-    debug: 0.6
+    debug: 0.5
     explication: 0.8
     design: 0.7
-    securite: 0.5
-    performance: 0.8
-  anti_patterns:
-  - missing_option_argument_validation
-  - option_injection_risk
-  strengths:
-  - Support des options courtes et longues
-  - Fonction usage détaillée
-  weaknesses:
-  - Pas de vérification de valeur manquante
-  - Fichier commençant par '-' non protégé
-- notion: awk_text_processing
-  scores:
-    connaissance: 0.8
-    implementation: 0.7
-    debug: 0.6
-    explication: 0.7
-    design: 0.8
-    securite: 0.5
-    performance: 0.8
+    securite: 0.6
+    performance: 0.6
   anti_patterns: []
   strengths:
-  - Analyse en un seul passage
-  - Agrégation correcte des métriques
+  - Utilisation correcte de set -euo pipefail
+  - Fonctions bien découpées et nommées
+  - Gestion des arguments avec while/case/shift
   weaknesses:
-  - Pipeline sort/head imbriqué peut être fragile
-- notion: jq_json_processing
+  - Certaines constructions sont fragiles (pipe sort dans awk)
+  - Pas de vérification de dépendances
+- notion: awk
   scores:
     connaissance: 0.7
-    implementation: 0.6
-    debug: 0.5
-    explication: 0.6
-    design: 0.7
-    securite: 0.4
-    performance: 0.5
-  anti_patterns: []
-  strengths:
-  - Agrégation JSON correcte
-  - Gestion des arrondis
-  weaknesses:
-  - Charge tout le fichier en mémoire avec -s
-  - Dépendance à jq et syntaxe avancée mal maîtrisée
-- notion: error_handling_exit_codes
-  scores:
-    connaissance: 0.8
     implementation: 0.7
-    debug: 0.6
-    explication: 0.8
-    design: 0.8
+    debug: 0.5
+    explication: 0.7
+    design: 0.6
     securite: 0.5
-    performance: 0.8
+    performance: 0.6
   anti_patterns: []
   strengths:
-  - set -euo pipefail
-  - Validation des entrées et exit codes 1/2/3/4
+  - Analyse texte en un seul passage
+  - Extraction correcte des champs et calculs
   weaknesses:
-  - La gestion des arguments manquants pourrait être plus robuste
-- notion: testing_robustness
+  - Utilisation d'un pipe vers sort depuis awk est un hack
+  - Tri et head intégrés de manière peu élégante
+- notion: jq
   scores:
     connaissance: 0.5
-    implementation: 0.4
+    implementation: 0.5
     debug: 0.3
-    explication: 0.4
+    explication: 0.6
     design: 0.5
-    securite: 0.3
-    performance: 0.5
+    securite: 0.5
+    performance: 0.3
   anti_patterns:
-  - hardcoded_path
-  - inconsistent_tests
+  - slurp_large_files
+  - no_dependency_checks
   strengths:
-  - Fournit un générateur de données
+  - Fonctionnalité de base correcte pour JSONL
+  - Nettoyage du champ duration_ms avec gsub
   weaknesses:
-  - Générateur écrit dans /data en dur et lit depuis le mauvais répertoire
-  - Tests de sortie incohérents entre text et json
-- notion: documentation_adr
+  - Syntaxe jq avancée peu maîtrisée
+  - Utilisation de --slurp charge tout en mémoire
+- notion: cli_argument_parsing
   scores:
     connaissance: 0.8
     implementation: 0.8
     debug: 0.6
-    explication: 0.9
-    design: 0.7
-    securite: 0.6
+    explication: 0.8
+    design: 0.8
+    securite: 0.7
     performance: 0.7
   anti_patterns: []
   strengths:
-  - ADR détaillée
-  - Justifie les choix techniques
+  - Support des options courtes et longues
+  - Validation des types et valeurs
+  - Aide claire avec usage()
   weaknesses:
-  - Peu de commentaires dans le code lui-même
+  - Pas de vérification que l'argument optionnel est fourni (${2:-})
+- notion: error_handling
+  scores:
+    connaissance: 0.7
+    implementation: 0.7
+    debug: 0.4
+    explication: 0.7
+    design: 0.6
+    securite: 0.6
+    performance: 0.5
+  anti_patterns: []
+  strengths:
+  - Codes de sortie respectés (1,2,3,4)
+  - Messages d'erreur clairs sur stderr
+  weaknesses:
+  - Pas de gestion des erreurs jq/awk si absents
+  - Pas de test des cas d'erreur
+- notion: data_generation_testing
+  scores:
+    connaissance: 0.4
+    implementation: 0.3
+    debug: 0.2
+    explication: 0.5
+    design: 0.3
+    securite: 0.3
+    performance: 0.4
+  anti_patterns:
+  - hardcoded_path
+  - typo_in_filenames
+  - no_automated_tests
+  strengths:
+  - Tentative de génération de données variées
+  weaknesses:
+  - Script generate_dummy_logs.sh cassé (chemin /data/)
+  - Méthode DELETE jamais générée (bug % 4)
+  - Fichiers de test avec typos et incohérents
+  - Aucun test automatisé
 calibration:
   overconfidence: true
   underconfidence: false
-  notes: 'L''auto-évaluation surestime la robustesse : les tests fournis sont incohérents,
-    le générateur utilise /data en dur, et la validation des arguments est incomplète.
-    Le cœur du script est fonctionnel mais ne correspond pas au niveau affiché.'
+  notes: L'auto-évaluation prétend que tout est validé alors que le script de génération
+    ne fonctionne pas (chemin /data/), que les fichiers de test ont des typos et des
+    incohérences, et que la génération de méthodes oublie DELETE. Les tests ne sont
+    pas automatisés et le script principal dépend de jq sans vérification.
 ---
-## Rapport d'évaluation LogSentry
+# Rapport d'évaluation LogSentry
 
-### Scores globaux par dimension
+## Scores par dimension
+- Connaissance : 0.7/1 - Bonne maîtrise des concepts mais lacunes en jq avancé.
+- Implémentation : 0.6/1 - Script principal fonctionnel, mais générateur buggé et tests inexacts.
+- Debug : 0.4/1 - Pas de preuve de résolution de bugs, tests non fiables.
+- Explication : 0.8/1 - Auto-évaluation claire et documentée.
+- Design : 0.7/1 - Architecture propre, mais choix discutables (pipe sort dans awk, slurp).
+- Sécurité : 0.6/1 - Pas de secrets, mais pas de vérification de dépendances.
+- Performance : 0.5/1 - awk efficace, mais jq --slurp risque mémoire, sort dans awk.
 
-| Dimension | Score moyen (0-1) | Commentaire |
-|-----------|-------------------|-------------|
-| Connaissance | 0.73 | Bonne compréhension globale, quelques lacunes en jq et sur les tests |
-| Implémentation | 0.65 | Fonctionnel pour le cas nominal, bugs dans le générateur et les tests |
-| Debug | 0.53 | Peu de traces de débogage, fichiers de test incohérents |
-| Explication | 0.70 | ADR claire, mais le code manque de commentaires |
-| Design | 0.70 | Bon découpage fonctionnel, améliorations possibles (config, CLI) |
-| Sécurité | 0.47 | Pas de secrets, mais risques d'injection d'options et chemins en dur |
-| Performance | 0.68 | AWK en un seul passage efficace, jq -s non scalable |
+## Calibration
+L'auto-évaluation est overconfidente : prétend que tout est validé alors que le script de génération ne fonctionne pas (chemin /data/), les fichiers de test ont des typos et sont incohérents, et la génération de méthodes oublie DELETE.
 
-### Analyse de calibration
+## Anti-patterns détectés
+- Chemin absolu `/data/` codé en dur dans generate_dummy_logs.sh.
+- Pas de vérification de présence de jq/awk avant exécution.
+- `jq --slurp` charge tout en mémoire (risque pour gros fichiers).
+- Pas de tests automatisés, seulement des exemples de sortie non vérifiés.
+- Typos dans les noms de fichiers de test (`ouput` au lieu de `output`).
+- Génération de données avec bug (DELETE jamais sélectionné).
 
-L'auto-évaluation affirme que le script est robuste, que le linting passe (0 warning shellcheck) et que l'équivalence des métriques est stricte. Or, des incohérences majeures existent :
-- Les fichiers de test `text_ouput_test.txt` et `json_ouput_test.json` donnent des résultats incompatibles pour les mêmes données supposées (500 requêtes, 0 erreur vs 27% d'erreurs).
-- Le générateur `generate_dummy_logs.sh` écrit le `.log` dans le répertoire courant mais lit ensuite depuis `/data/`, et écrit le `.jsonl` dans `/data/` sans créer ce répertoire.
-- La validation des arguments ne gère pas l'absence de valeur pour les options (`-i` sans argument).
+## Points forts
+- Structure du script principal bien organisée (parse_args, validate_args, analyze_text, analyze_json).
+- Gestion des codes de sortie conforme aux spécifications.
+- Utilisation de `set -euo pipefail` pour la robustesse.
+- Analyse texte en un seul passage avec awk.
 
-Cela indique une **surconfiance** dans l'auto-évaluation.
+## Points faibles
+- Script de génération cassé.
+- Tests absents ou incorrects.
+- Dépendance à jq non contrôlée.
+- Utilisation de `sort` via pipe dans awk (hack fragile).
 
-### Anti-patterns détectés
-
-- `hardcoded_path` : chemin `/data/` codé en dur dans `generate_dummy_logs.sh`.
-- `inconsistent_tests` : les sorties attendues des tests texte et JSON ne correspondent pas.
-- `missing_option_argument_validation` : `parse_args` ne vérifie pas si `$2` est vide pour les options `-i`, `-f`, `-t`, `-n`.
-- `option_injection_risk` : les fichiers passés à `awk` et `jq` ne sont pas précédés de `--`; un chemin commençant par `-` serait interprété comme une option.
-- `no_resource_limits` : pas de `ulimit` ni `timeout`; un fichier énorme pourrait épuiser la mémoire avec `jq -s`.
-
-### Points forts
-
-- Architecture modulaire (`parse_args`, `validate_args`, `analyze_text`, `analyze_json`) avec `main` comme point d'entrée unique.
-- Utilisation de `set -euo pipefail` pour stopper en cas d'erreur.
-- Analyse AWK en un seul passage pour le mode texte, conforme à l'exigence de performance.
-- Sortie JSON valide et structurée via `jq`, avec calcul de taux d'erreur et top endpoints.
-- Documentation ADR détaillée justifiant les choix techniques.
-
-### Points faibles
-
-- Générateur de logs incohérent (mauvais répertoire, chemins en dur).
-- Tests non automatisés et contradictoires.
-- Gestion des arguments incomplète (options sans valeur).
-- Sécurité des entrées (injection d'options) non traitée.
-- Traitement JSON en mémoire (`jq -s`) non scalable pour de gros volumes.
-- Absence de commentaires dans le code, rendant la maintenance plus difficile.
-
-### Recommandations
-
-1. **Corriger le générateur** : utiliser un répertoire de sortie configurable (ou créer `/data` s'il le faut) et ne pas mélanger les chemins.
-2. **Mettre à jour les tests** : harmoniser les sorties attendues et ajouter un script de test automatisé (`make test` ou `./tests/run.sh`).
-3. **Renforcer la validation des arguments** : vérifier que chaque option a bien une valeur, sinon afficher l'usage et sortir avec le code 1.
-4. **Protéger les chemins de fichiers** : utiliser `--` avant `$INPUT_FILE` pour `awk` et `jq`, ou refuser les chemins commençant par `-`.
-5. **Améliorer la scalabilité JSON** : utiliser `jq --slurp` seulement pour les petits fichiers; pour les gros, traiter en flux avec `jq -c` et agréger avec AWK ou `reduce`.
-6. **Ajouter des limites de ressources** : `ulimit -v` et `timeout` dans le script ou via un wrapper.
-7. **Intégrer shellcheck et des tests dans la CI** pour garantir la non-régression.
-
-### Lectures ciblées
-
-- `man bash` (sections sur `getopts`, `shift`, `set`)
-- `man awk` (pipelines internes, tri)
-- `jq` manual : traitement en flux (`--stream`, `reduce`)
-- Bonnes pratiques de tests en shell (bats, shellspec)
-
-### Exercices futurs
-
-- Étendre l'outil pour supporter des formats compressés (gzip).
-- Ajouter un mode interactif ou une sortie CSV.
-- Implémenter une rotation de logs et une gestion de seuils dynamiques.
+## Recommandations
+- Corriger generate_dummy_logs.sh : utiliser des chemins relatifs, corriger la sélection aléatoire (méthodes 1-5 au lieu de 1-4).
+- Mettre en place des tests automatisés (par exemple, comparer les sorties avec des fichiers attendus).
+- Vérifier la présence de jq et awk dans le script principal.
+- Éviter `jq --slurp` pour les gros fichiers, utiliser `jq -c` ou un traitement streaming.
+- Revoir la génération des logs pour inclure DELETE.
+- Corriger les noms de fichiers de test.
