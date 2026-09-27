@@ -1,0 +1,29 @@
+{
+  "file": "data/access.jsonl",
+  "requests": 500,
+  "error_rate": 27,
+  "avg_latency_ms": 605,
+  "slow_requests": 303,
+  "top_endpoints": [
+    {
+      "path": "/api/orders",
+      "count": 113
+    },
+    {
+      "path": "/health",
+      "count": 108
+    },
+    {
+      "path": "/api/users",
+      "count": 99
+    },
+    {
+      "path": "/api/payments",
+      "count": 95
+    },
+    {
+      "path": "/api/users/42",
+      "count": 85
+    }
+  ]
+}
