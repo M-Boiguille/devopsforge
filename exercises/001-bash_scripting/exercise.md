@@ -2,6 +2,7 @@
 
 > **Note du formateur (transparence sur l'adaptation du profil)**
 > Ton profil ne contient **aucune notion « due »** (`dues: []`) et aucun projet fil rouge n'est défini. J'ai donc pris deux décisions que tu valides ou contestes :
+>
 > 1. Les **notions cibles** sont `linux.bash_scripting` et `linux.file_parsing` (toutes deux à 0.0) — ce sont les seules notions existantes dans ton profil, elles sont donc traitées comme **prioritaires** et deviendront dues après cet exercice.
 > 2. Je **propose un fil rouge** : `LogSentry`, un CLI d'observabilité qui sera, incrément après incrément, versionné (Git), conteneurisé (Docker), déployé (Kubernetes) et provisionné (Terraform). Si tu as un autre projet, dis-le-moi : les incréments s'y raccrocheront.
 
@@ -16,7 +17,7 @@ Tu rejoins une équipe SRE qui analyse chaque jour des logs d'accès web pour d�
 ## 🎯 Objectifs (notions travaillées)
 
 | # | Domaine | Notion / sous-notion | Ce que tu dois démontrer |
-|---|---------|----------------------|--------------------------|
+| --- | --------- | ---------------------- | -------------------------- |
 | 1 | linux | `bash_scripting` → `arguments_getopts` | CLI avec options courtes/longues, `-h`, exit codes distincts |
 | 2 | linux | `bash_scripting` → `gestion_erreurs_set_e` | `set -euo pipefail`, trap, validation d'entrées |
 | 3 | linux | `bash_scripting` → `fonctions` + `boucles_conditions` | Code découpé, pas de script « plat » de 200 lignes |
@@ -44,9 +45,9 @@ Génère le jeu de données (500 lignes de logs texte + l'équivalent JSONL) :
 {
   for i in $(seq 1 500); do
     ip="10.0.0.$(( (RANDOM % 8) + 10 ))"
-    method=$(printf '%s' GET POST GET GET DELETE | cut -d' ' -f$(( (RANDOM % 4) + 1 )))
-    path=$(printf '%s' /api/users /api/orders /health /api/users/42 /api/payments | cut -d' ' -f$(( (RANDOM % 5) + 1 )))
-    status=$(printf '%s' 200 200 200 201 404 500 503 | cut -d' ' -f$(( (RANDOM % 7) + 1 )))
+    method=$(printf '%s ' GET POST GET GET DELETE | cut -d' ' -f$(( (RANDOM % 4) + 1 )))
+    path=$(printf '%s ' /api/users /api/orders /health /api/users/42 /api/payments | cut -d' ' -f$(( (RANDOM % 5) + 1 )))
+    status=$(printf '%s ' 200 200 200 201 404 500 503 | cut -d' ' -f$(( (RANDOM % 7) + 1 )))
     ms=$(( RANDOM % 1200 ))
     printf '2024-06-01T08:%02d:%02dZ %s %s %s %s %dms\n' $((RANDOM%60)) $((RANDOM%60)) "$ip" "$method" "$path" "$status" "$ms"
   done
@@ -65,6 +66,7 @@ wc -l data/access.log data/access.jsonl
 ### Étape 1 — Lecture guidée (8 min) — *les 20% théoriques*
 
 Lis **uniquement** ces deux sections, puis reviens coder :
+
 - le builtin `getopts` dans le manuel Bash (lien ci-dessous) : comprends la différence entre `$OPTARG`, `$OPTIND` et une boucle `while getopts ... ; do case ... esac ; done`,
 - la page ShellCheck : parcours les 5 codes d'erreur les plus fréquents (SC2086, SC2046, SC2181, SC2002, SC2164).
 
@@ -85,7 +87,7 @@ IFS=$'\n\t'
 Interface à implémenter :
 
 | Option | Description | Défaut |
-|--------|-------------|--------|
+| -------- | ------------- | -------- |
 | `-i, --input <file>` | fichier de logs (obligatoire) | — |
 | `-f, --format <text\|json>` | format d'entrée | `text` |
 | `-t, --threshold <ms>` | seuil « requête lente » en ms | `500` |
@@ -118,6 +120,7 @@ Top 5 endpoints:
 ```
 
 Règles techniques :
+
 - **Interdit** d'appeler `awk` plus d'une fois sur le fichier, ou de faire `cat fichier | grep ...`. Un `grep` + un `awk` maximum.
 - L'agrégation du top et des compteurs se fait dans **le même `awk`** (tableau associatif + `END`).
 - Le tri du top se fait par `sort -k2,2nr | head -n "$top"`, pas par une boucle Bash.
@@ -128,6 +131,7 @@ Règles techniques :
 ### Étape 4 — Mode JSON (10 min)
 
 `./bin/logsentry.sh -i data/access.jsonl -f json` doit :
+
 1. convertir la sortie en JSON **valide** (clés : `file`, `requests`, `error_rate`, `avg_latency_ms`, `slow_requests`, `top_endpoints[].path|count`),
 2. rester composable : `./bin/logsentry.sh -i data/access.jsonl -f json | jq -r '.top_endpoints[0].path'` doit fonctionner.
 
@@ -163,18 +167,18 @@ git commit -m "feat(logsentry): CLI bash de résumé de logs (text/json)"
 
 ## 📚 Ressource recommandée
 
-- **KodeKloud — Bash Scripting** (lab interactif getopts + gestion d'erreurs) : https://kodekloud.com/courses/bash-scripting/
-- **Manuel Bash officiel — `getopts`** : https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html#index-getopts
-- **ShellCheck** (à lancer en local) : https://www.shellcheck.net/
-- **Manuel jq** : https://jqlang.github.io/jq/manual/
-- **GNU awk** : https://www.gnu.org/software/gawk/manual/gawk.html
+- **KodeKloud — Bash Scripting** (lab interactif getopts + gestion d'erreurs) : <https://kodekloud.com/courses/bash-scripting/>
+- **Manuel Bash officiel — `getopts`** : <https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html#index-getopts>
+- **ShellCheck** (à lancer en local) : <https://www.shellcheck.net/>
+- **Manuel jq** : <https://jqlang.github.io/jq/manual/>
+- **GNU awk** : <https://www.gnu.org/software/gawk/manual/gawk.html>
 
 ---
 
 ## 🧮 Grille de notation (100 pts)
 
 | Dimension | Poids | Ce qui est évalué | 0 pt | Partiel | Plein |
-|-----------|-------|-------------------|------|---------|-------|
+| ----------- | ------- | ------------------- | ------ | --------- | ------- |
 | **Implémentation** | **30 %** | Le script tourne, sortie conforme, les 4 cas de test passent | ne tourne pas | tourne partiellement | conforme + exit codes exacts |
 | **Connaissance** | 15 % | Bon usage de `getopts`, `awk` (tableaux, `END`), `jq`, `sort/uniq` | API mal utilisée | usage correct mais détourné | usage idiomatique, justifié au débrief |
 | **Design / lisibilité** | 15 % | Découpage en fonctions (`usage()`, `parse_args()`, `analyze_text()`, `analyze_json()`), nommage, zéro duplication | script plat | 1-2 fonctions | séparation nette + `main()` |
@@ -189,13 +193,13 @@ git commit -m "feat(logsentry): CLI bash de résumé de logs (text/json)"
 
 ## ✅ Critères de réussite
 
-- [ ] `shellcheck -S warning bin/logsentry.sh` → **0 warning**.
-- [ ] Les 4 exit codes attendus sont respectés (testés, pas supposés).
-- [ ] `-f text` et `-f json` donnent **les mêmes chiffres** sur le même jeu de données.
-- [ ] La sortie JSON est validée par `jq -e .`.
-- [ ] Au maximum **un** `awk` et **un** `grep` par exécution.
-- [ ] Le code contient au moins **4 fonctions** et un `main "$@"`.
-- [ ] Commit Git au message conventionnel.
+- [x] `shellcheck -S warning bin/logsentry.sh` → **0 warning**.
+- [x Les 4 exit codes attendus sont respectés (testés, pas supposés).
+- [x] `-f text` et `-f json` donnent **les mêmes chiffres** sur le même jeu de données.
+- [x] La sortie JSON est validée par `jq -e .`.
+- [x] Au maximum **un** `awk` et **un** `grep` par exécution.
+- [x] Le code contient au moins **4 fonctions** et un `main "$@"`.
+- [x] Commit Git au message conventionnel.
 
 ## 🚀 Bonus (si tu termines avant 60 min)
 
