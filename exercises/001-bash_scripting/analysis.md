@@ -3,106 +3,125 @@ date: '2026-09-27'
 notions:
 - notion: bash_scripting
   scores:
-    connaissance: 0.4
-    implementation: 0.5
-    debug: 0.4
-    explication: 0.2
-    design: 0.7
-    securite: 0.6
-    performance: 0.5
-  anti_patterns:
-  - manual_option_parsing_instead_of_getopts
-  - missing_argument_validation
-  strengths:
-  - Fonctions bien séparées
-  - set -euo pipefail
-  weaknesses:
-  - Pas de getopts
-  - Pas de gestion des arguments manquants
-  - Pas de NOTES.md
-- notion: file_parsing
-  scores:
     connaissance: 0.7
-    implementation: 0.7
-    debug: 0.5
-    explication: 0.3
-    design: 0.6
-    securite: 0.6
+    implementation: 0.6
+    debug: 0.7
+    explication: 0.4
+    design: 0.8
+    securite: 0.8
     performance: 0.8
   anti_patterns:
-  - command_construction_in_awk
-  - no_validation_of_line_format
+  - manual_arg_parsing_instead_of_getopts
+  - missing_required_documentation
   strengths:
-  - Single-pass AWK
-  - Tri délégué à sort
-  - Usage de jq
+  - Bon découpage fonctionnel avec parse_args, validate_args, analyze_text, analyze_json
+    et main.
+  - Usage correct de set -euo pipefail et validation stricte des entrées avec codes
+    de sortie distincts.
   weaknesses:
-  - Pas de test automatisé
-  - jq -s charge tout en mémoire
+  - N'utilise pas getopts malgré l'objectif pédagogique ; l'argumentaire est recevable
+    mais s'écarte de la consigne.
+  - Pas de trap de nettoyage ni de gestion des signaux, même sans fichier temporaire,
+    ce qui est attendu dans la notion.
+- notion: file_parsing
+  scores:
+    connaissance: 0.8
+    implementation: 0.6
+    debug: 0.6
+    explication: 0.4
+    design: 0.7
+    securite: 0.8
+    performance: 0.8
+  anti_patterns:
+  - nondeterministic_output_order
+  - format_mismatch
+  strengths:
+  - Awk en un seul passage avec tableaux associatifs, END et pipe interne vers sort.
+  - Utilisation avancée de jq (slurp, group_by, sort_by, halt_error) pour le mode
+    JSON.
+  - LC_ALL=C appliqué pour les tris.
+  weaknesses:
+  - 'La sortie texte ne respecte pas exactement le format demandé : numérotation manquante,
+    espacement divergent, ordre des IP non déterministe.'
+  - Le fichier tests/text_ouput_test.txt est incohérent avec le comportement attendu
+    (résultat d'un mauvais usage), ce qui traduit un manque de tests de non-régression.
 - notion: bash_scripting_advanced
   scores:
-    connaissance: 0.2
-    implementation: 0.2
-    debug: 0.2
-    explication: 0.2
-    design: 0.3
-    securite: 0.3
-    performance: 0.2
+    connaissance: 0.5
+    implementation: 0.5
+    debug: 0.5
+    explication: 0.3
+    design: 0.5
+    securite: 0.7
+    performance: 0.7
   anti_patterns:
-  - no_trap
-  - no_shellcheck_output
-  strengths: []
+  - missing_trap_cleanup
+  - no_signal_handling
+  strengths:
+  - Shellcheck sans warning confirmé.
+  - Pas de fichier temporaire donc pas de risque de résidu, mais l'absence de trap
+    est non conforme à l'objectif.
   weaknesses:
-  - Aucun trap implémenté
-  - Pas de preuve de lint
-  - Pas de fichier NOTES.md
+  - Aucun trap EXIT/INT/TERM n'est mis en place, même pour un éventuel nettoyage futur.
+  - Pas de documentation des codes shellcheck comme demandé dans tests/NOTES.md.
 calibration:
   overconfidence: true
   underconfidence: false
-  notes: Auto-évaluation considère tous les livrables complétés alors que NOTES.md
-    est absent, getopts non utilisé, trap non implémenté. Légère sur-confiance.
+  notes: 'Auto-évaluation très optimiste : tous les critères de réussite sont cochés
+    alors que la sortie texte ne respecte pas le format exact (numérotation absente,
+    espacements différents), que tests/NOTES.md n''est pas fourni, et que le script
+    auxiliaire a un bug de chemin absolu. L''étudiant reconnaît néanmoins ses difficultés
+    de reprise en main et l''aide de l''IA pour jq, ce qui atténue la surconfiance
+    globale.'
 ---
-# Évaluation LogSentry — Incrément 1
+# Rapport d'évaluation LogSentry — Incrément 1
 
-## Synthèse
-Le script `bin/logsentry.sh` est fonctionnel et respecte les exit codes imposés. Cependant, des manquements importants sont relevés : le livrable `tests/NOTES.md` est absent, l'utilisation de `getopts` (notion cible) n'est pas démontrée, aucun `trap` n'est mis en place, et la robustesse face aux lignes malformées est insuffisante. La note globale pondérée est estimée à 0.45/1, ce qui correspond à un niveau « à consolider » (seuil < 0.60).
+## Scores par dimension
 
-## Scores par dimension (moyenne toutes notions)
-- Implémentation : 0.55 — Fonctionne, mais pas de getopts, validation des arguments partielle.
-- Connaissance : 0.40 — Usage correct d'awk, jq correct mais aide IA, pas getopts.
-- Debug : 0.35 — set -euo pipefail, mais pas de trap, pas de gestion des lignes malformées.
-- Explication : 0.20 — ADR présent mais NOTES.md absent, explications sommaires.
-- Design : 0.60 — Découpage en fonctions, main propre.
-- Sécurité : 0.55 — Quoting majoritairement correct, pas d'eval, mais construction de commande dans awk.
-- Performance : 0.60 — Un seul passage awk, LC_ALL=C, mais jq -s charge tout.
+| Dimension | Score | Justification |
+|-----------|-------|---------------|
+| Connaissance | 0.65 | Bon usage d'awk, jq et sort. Le choix de ne pas utiliser getopts est défendable mais s'écarte de l'objectif pédagogique. |
+| Implémentation | 0.60 | Le script tourne et les codes de sortie sont probablement corrects, mais la sortie texte ne correspond pas au format exact exigé (numérotation manquante, espaces, ordre des IP non stable). |
+| Debug | 0.60 | set -euo pipefail et validation des entrées sont présents. Manque de gestion explicite des lignes malformées et de trap de nettoyage. |
+| Explication | 0.35 | Aucun tests/NOTES.md fourni malgré la consigne. L'ADR est présent mais ne remplace pas le livrable demandé. |
+| Design | 0.70 | Bon découpage en fonctions et séparation des responsabilités. Améliorable sur la gestion des signaux et l'utilisation de getopts. |
+| Sécurité | 0.75 | Quoting systématique, pas d'eval, pas de secret hardcodé. Le script auxiliaire contient un chemin absolu dangereux (/data/). |
+| Performance | 0.80 | Un seul passage awk, LC_ALL=C, pas de fork inutile. jq lit tout en mémoire (slurp), ce qui est acceptable pour 500 lignes mais à surveiller. |
 
 ## Analyse de calibration
-L'auto-évaluation est légèrement sur-confiente : elle coche tous les critères de réussite alors que `tests/NOTES.md` n'est pas fourni, que `getopts` est remplacé par une boucle `while/case`, et qu'aucun `trap` n'est implémenté. Les difficultés mentionnées (syntaxe Bash, types jq) sont réelles mais sous-estiment les lacunes opérationnelles.
+
+Overconfidence détectée : l'auto-évaluation coche tous les critères de réussite alors que plusieurs ne sont pas atteints (format exact, NOTES.md, absence de trap). L'étudiant fait preuve de lucidité sur le temps passé et l'aide de l'IA, mais sous-estime l'impact des écarts de forme.
 
 ## Anti-patterns détectés
-- **Parsing manuel des options** : non-utilisation de `getopts` malgré l'objectif pédagogique ; risque de régression.
-- **Validation insuffisante des arguments** : `parse_args` n'accepte pas les erreurs d'argument manquant de façon propre (ex. `-i` seul -> fichier "-i").
-- **Construction de commande dans awk** : `cmd = "sort ... | head -n " top_n` ; sûre ici car top_n validé, mais anti-pattern de sécurité.
-- **Absence de trap** : objectif `bash_scripting_advanced` non couvert.
-- **Pas de validation du format des lignes** : une ligne texte malformée sera comptée avec des champs vides, faussant les métriques.
-- **Script générateur défectueux** : `generate_dummy_logs.sh` utilise un chemin absolu `/data/` inexistant et ne supprime pas le suffixe `ms` correctement.
+
+1. **manual_arg_parsing_instead_of_getopts** : boucle while/case au lieu du builtin getopts, malgré l'objectif explicite.
+2. **hardcoded_absolute_path** : dans generate_dummy_logs.sh, l'écriture se fait vers /data/ au lieu d'un chemin relatif, ce qui casse le script.
+3. **missing_required_documentation** : tests/NOTES.md absent.
+4. **missing_trap_cleanup** : aucun trap mis en place, contrairement à l'objectif de trappage des signaux.
+5. **nondeterministic_output_order** : l'ordre des IP dans le rapport texte dépend de l'implémentation de awk.
+6. **format_mismatch** : la sortie texte ne respecte pas le format imposé.
 
 ## Points forts
-- Structure claire avec fonctions dédiées (`usage`, `parse_args`, `validate_args`, `analyze_text`, `analyze_json`, `main`).
-- `set -euo pipefail` et `IFS` corrects.
-- Analyse texte en un seul passage awk avec tri délégué à `sort`, conforme à la contrainte.
-- Sortie JSON valide et composable via jq.
+
+- Architecture claire avec main, parse_args, validate_args, analyze_text, analyze_json.
+- Single-pass awk pour le mode texte, conforme à la contrainte.
+- Mode JSON valide et composable avec jq.
+- Quoting correct et pas d'eval.
 
 ## Points faibles
-- Livrable `tests/NOTES.md` manquant.
-- Non-utilisation de `getopts`.
-- Aucun `trap`.
-- Pas de tests automatisés ni de rapport shellcheck inclus.
-- Gestion des cas limites incomplète (lignes malformées, N > nb endpoints non testé).
+
+- Format de sortie texte non conforme (numérotation absente, espacements).
+- Absence de tests/NOTES.md et de tests automatisés (bats).
+- Script auxiliaire défectueux.
+- Pas de gestion des signaux ni trap.
+- Utilisation de jq --slurp charge tout le fichier en mémoire, risque sur de gros volumes.
 
 ## Recommandations
-1. **Lecture ciblée** : revoir le builtin `getopts` et l'utiliser pour les options courtes, en complétant avec une boucle pour les options longues si nécessaire (ou utiliser `getopt` externe). Rédiger `tests/NOTES.md` avec les 5 codes ShellCheck demandés.
-2. **Robustesse** : ajouter un `trap` de nettoyage même sans fichier temporaire (ex. signal), valider la présence de l'argument pour chaque option, et filtrer les lignes malformées en awk (vérifier NF >= 6).
-3. **Sécurité** : éviter toute construction de commande dynamique ; utiliser `printf` + pipe avec des variables d'environnement awk si possible.
-4. **Tests** : créer un script de test automatisé (bats ou simple bash) couvrant les exit codes, la sortie JSON, l'équivalence text/json, et les cas limites.
-5. **Exercices futurs** : intégrer `getopts`, `trap`, et des tests dès l'incrément 2 (Docker) pour consolider les notions avancées.
+
+1. **Corriger immédiatement** le format de sortie texte pour respecter l'exemple : ajouter la numérotation et aligner les libellés.
+2. **Rédiger tests/NOTES.md** avec les 5 codes shellcheck demandés.
+3. **Revoir la gestion des options** : soit utiliser getopts pour les options courtes et une extension pour les longues, soit justifier plus solidement le choix manuel.
+4. **Ajouter un trap** (EXIT, INT, TERM) même sans fichier temporaire, pour se préparer aux incréments futurs (Docker, etc.).
+5. **Corriger generate_dummy_logs.sh** en utilisant des chemins relatifs et en ajoutant des garde-fous.
+6. **Envisager un streaming jq** (jq -n) pour les gros fichiers JSONL afin d'éviter le slurp intégral.
+7. **Mettre en place des tests de non-régression** (par exemple bats) couvrant les cas limites et les formats.
