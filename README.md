@@ -9,7 +9,7 @@ DevOpsForge remplace les flashcards statiques par des **exercices de code multi-
 | Repo | Visibilité | Rôle |
 |---|---|---|
 | `devopsforge` (ce repo) | public | Processus complet : workflows, prompts, scripts, exercices, specs. Transparence pour les recruteurs. |
-| `devopsforge-profile` | privé | Uniquement les données de maîtrise : `profile/*.yaml`, `dues.yaml`, `errors.log`. |
+| `devopsforge-profile` | privé | Données de maîtrise (`profile/*.yaml`, `dues.yaml`, `errors.log`) + `roadmap.yaml` (plan d'apprentissage). |
 
 Les workflows publics lisent/écrivent le profil privé via `GH_TOKEN` (cross-repo). Le rapport d'analyse par exercice (scores, anti-patterns) est public ; seul le profil cumulé reste privé.
 
@@ -103,5 +103,6 @@ python3 scripts/select_due_notions.py --limit 3
 
 ## Ajouter une nouvelle notion
 
-1. Dans `devopsforge-profile/profile/<domaine>.yaml`, ajouter une entrée (7 dimensions à `0.0`, `last_reviewed: null`, `due_at: null`).
-2. Elle apparaîtra dans les exercices via `select_due_notions.py`.
+1. Dans `devopsforge-profile/roadmap.yaml`, ajouter la notion dans le bon domaine (dans l'ordre souhaité).
+2. Pour l'« activer » (la rendre enseignable), la copier dans `profile/<domaine>.yaml` (7 dimensions à `0.0`, `last_reviewed: null`, `due_at: null`).
+3. Elle apparaîtra dans les exercices via `select_due_notions.py`.
