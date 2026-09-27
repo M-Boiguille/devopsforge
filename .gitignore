@@ -1,6 +1,8 @@
-# Outils de dev locaux (SpecKit + opencode) — backup dans devopsforge-profile
+# Outils de dev locaux de la plateforme (SpecKit + opencode)
+# backup dans devopsforge-profile
 .opencode/
 .specify/
+.repo_git_dummy/*
 
 # Python
 __pycache__/
