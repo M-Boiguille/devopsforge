@@ -133,6 +133,16 @@ parse_args() {
       VERBOSE=1
       shift
       ;;
+    -)
+      if [[ -z "$INPUT_FILE" ]]; then
+        rm -f "$TMP_FILE"
+        cat <&0 >"$TMP_FILE" &
+        CAT_PID=$!
+        wait "$CAT_PID" 2>/dev/null || true
+        INPUT_FILE="$TMP_FILE"
+      fi
+      shift
+      ;;
     *)
       echo_err "Option inconnue '$1'" 1 usage
       ;;
