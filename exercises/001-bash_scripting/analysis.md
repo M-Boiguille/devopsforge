@@ -3,130 +3,128 @@ date: '2026-09-27'
 notions:
 - notion: bash_scripting
   scores:
-    connaissance: 0.7
-    implementation: 0.8
+    connaissance: 0.4
+    implementation: 0.7
     debug: 0.7
-    explication: 0.5
-    design: 0.7
+    explication: 0.2
+    design: 0.8
     securite: 0.8
     performance: 0.7
   anti_patterns:
-  - getopts_not_used
-  - manual_arg_parsing_with_shift
-  - no_trap_cleanup
+  - manual_option_parsing_instead_of_getopts
   strengths:
-  - Fonctions découpées (parse_args, validate_args, analyze_*)
-  - Gestion des options courtes et longues avec exit codes
-  - Validation des entrées (fichier, format, entiers)
+  - Bonne structure fonctionnelle avec parse_args, validate_args, analyze_text, analyze_json
+    et main
+  - set -euo pipefail correctement utilisé
+  - Validation des entrées (fichier, format, entiers positifs)
   weaknesses:
-  - N'utilise pas getopts malgré la lecture obligatoire
-  - Parsing manuel avec shift 2 peut provoquer des sorties non contrôlées
-  - Pas de trap pour le nettoyage (même sans fichier temporaire)
+  - getopts non utilisé malgré l'objectif explicite
+  - Absence du livrable tests/NOTES.md
+  - Parsing manuel des options longues sans gestion robuste des arguments manquants
 - notion: file_parsing
-  scores:
-    connaissance: 0.7
-    implementation: 0.8
-    debug: 0.6
-    explication: 0.5
-    design: 0.6
-    securite: 0.8
-    performance: 0.6
-  anti_patterns:
-  - jq_slurp_entire_file
-  - awk_pipe_to_sort_head
-  - no_malformed_line_handling
-  strengths:
-  - Agrégation en un seul passage awk avec tableaux associatifs
-  - Utilisation de jq pour le format JSONL
-  - Tri du top endpoints via sort -k2,2nr
-  weaknesses:
-  - jq -s charge tout le fichier en mémoire (problème pour gros volumes)
-  - Pas de gestion des lignes JSON invalides ou malformées
-  - Le tri interne à awk fork sort et head à chaque exécution
-- notion: bash_scripting_advanced
   scores:
     connaissance: 0.6
     implementation: 0.7
-    debug: 0.5
-    explication: 0.5
-    design: 0.6
-    securite: 0.7
-    performance: 0.6
+    debug: 0.7
+    explication: 0.2
+    design: 0.8
+    securite: 0.8
+    performance: 0.8
   anti_patterns:
-  - no_trap_signal_handling
-  - missing_shellcheck_ci
+  - awk_pipe_to_sort_inside_awk
   strengths:
-  - shellcheck -S warning passe sans erreur
-  - set -euo pipefail présent
+  - Single-pass awk avec tableaux associatifs et bloc END
+  - Utilisation correcte de jq pour le mode JSON
+  - Tri du top avec sort -k2,2nr | head, et LC_ALL=C pour la performance
   weaknesses:
-  - Pas de trap pour signaux EXIT/INT/TERM
-  - Pas de test automatisé (bats) pour les cas limites
-  - Shellcheck validé mais non intégré dans un workflow
+  - Pas d'utilisation de grep/cut/sort/uniq direct comme demandé
+  - Ordre des IPs en erreur non déterministe (for ip in ip_err sans tri)
+  - Le pipe sort à l'intérieur de awk est fonctionnel mais moins lisible qu'un tri
+    externe
+- notion: bash_scripting_advanced
+  scores:
+    connaissance: 0.4
+    implementation: 0.7
+    debug: 0.7
+    explication: 0.2
+    design: 0.8
+    securite: 0.8
+    performance: 0.7
+  anti_patterns:
+  - no_trap_for_signal_handling
+  strengths:
+  - shellcheck -S warning ne remonte aucun warning
+  - Quoting systématique des variables
+  weaknesses:
+  - Pas de trap de signaux (EXIT/INT/TERM) même si aucun fichier temporaire n'est
+    utilisé
+  - Aucune gestion explicite des interruptions
 calibration:
   overconfidence: true
   underconfidence: false
-  notes: L'auto-évaluation revendique tous les livrables validés (équivalence stricte,
-    exit codes, shellcheck) mais omet de mentionner l'absence du fichier tests/NOTES.md
-    pourtant demandé. De plus, tests/text_ouput_test.txt montre une sortie incohérente
-    pour -f text sur un fichier JSONL, ce qui jette un doute sur la vérification réelle
-    de l'équivalence. La sur-confiance est modérée car l'ADR reconnaît des difficultés
-    et un temps > 1h30.
+  notes: L'auto-évaluation est globalement confiante mais omet des livrables (tests/NOTES.md
+    absent) et présente un test de sortie texte sur un fichier JSONL incohérent (text_ouput_test.txt
+    montre des métriques fausses). Le choix d'écarter getopts n'est pas suffisamment
+    justifié par rapport à l'objectif pédagogique. L'étudiant admet une difficulté
+    avec jq, ce qui nuance la sous-confiance, mais l'ensemble reflète une surestimation
+    de la conformité.
 ---
-# Rapport d'évaluation LogSentry — Incrément 1
+# Rapport d'évaluation — LogSentry Incrément 1
 
-## Scores par dimension
+## Scores par dimension (moyenne sur les notions)
 
-| Dimension | Score (0-1) | Justification |
-|---|---|---|
-| Connaissance | 0.7 | Bonne maîtrise globale de bash, awk, jq, sort. Mais absence d'utilisation de `getopts` malgré la lecture imposée, et recours à l'IA pour la syntaxe jq avancée. |
-| Implementation | 0.8 | Le script principal tourne et respecte les options et exit codes principaux. Quelques faiblesses : pas de gestion des fichiers JSONL invalides, générateur de données avec chemin absolu `/data` cassé. |
-| Debug | 0.65 | `set -euo pipefail` présent, validation des entrées correcte. Mais pas de `trap` pour le nettoyage, pas de gestion des lignes malformées, et le cas d'option sans argument peut provoquer une sortie non maîtrisée. |
-| Explication | 0.5 | L'ADR est de bonne qualité mais le fichier `tests/NOTES.md` demandé (livrable de lecture) est absent. L'explication orale supposée ne peut être évaluée ici. |
-| Design | 0.65 | Fonctions bien découpées, `main "$@"` présent. Cependant l'analyse JSON est un bloc `jq` monolithique difficile à relire, et le parsing manuel des arguments est moins idiomatique que `getopts`. |
-| Securite | 0.8 | Quoting systématique, aucun `eval`, pas de fichier temporaire exposé. Le générateur utilise un chemin absolu mais pas de risque d'injection dans le script principal. |
-| Performance | 0.6 | Un seul passage `awk` en mode texte, `LC_ALL=C` appliqué. Mais `jq -s` charge tout le fichier en mémoire, et le tri interne à `awk` fork `sort`/`head` à chaque exécution. |
+| Dimension | Score | Justification |
+|-----------|-------|---------------|
+| Connaissance | 0.47 | getopts non utilisé, pas de démonstration de grep/cut/sort, mais awk et jq maîtrisés. |
+| Implementation | 0.70 | Le script tourne et respecte les exit codes imposés, mais des cas limites de parsing d'options ne sont pas gérés. |
+| Debug / robustesse | 0.70 | set -euo pipefail et validation présents, mais pas de trap ni de gestion des interruptions. |
+| Explication | 0.20 | Le fichier tests/NOTES.md est absent, l'auto-évaluation ne contient pas les notes demandées. |
+| Design / lisibilité | 0.80 | Bon découpage en fonctions, main() clair, nommage correct. |
+| Sécurité | 0.80 | Quoting systématique, aucun eval, pas d'injection possible. |
+| Performance | 0.73 | Un seul passage awk, LC_ALL=C, mais jq -s charge tout en mémoire. |
 
 ## Analyse de calibration
 
-L'auto-évaluation se dit complète sur tous les points, mais l'absence de `tests/NOTES.md` et la présence d'un test textuel incohérent (`text_ouput_test.txt` sur un JSONL) indiquent une sur-confiance modérée. Les difficultés mentionnées (syntaxe Bash, types jq) montrent une honnêteté partielle.
+**Overconfidence : Oui**  
+L'auto-évaluation affirme une "équivalence stricte des métriques" et une conformité globale, mais omet le livrable NOTES.md et fournit un test de sortie texte incohérent (exécution du mode text sur un fichier JSONL). Le choix d'écarter getopts est présenté comme une décision d'architecture, sans reconnaissance du fait que l'objectif pédagogique demandait explicitement getopts.
+
+**Underconfidence : Non**  
+L'étudiant admet une difficulté avec jq et une reprise en main, mais cela ne suffit pas à compenser les manquements détectés.
 
 ## Anti-patterns détectés
 
-- **Absence de `getopts`** : le parsing manuel avec `shift` fonctionne mais ne suit pas la notion ciblée `arguments_getopts`.
-- **`jq -s` (slurp)** : charge tout le fichier JSONL en mémoire, non scalable.
-- **Pas de `trap`** : aucun nettoyage de fichiers temporaires ni gestion des signaux, alors que l'objectif le mentionnait.
-- **Chemin absolu `/data`** dans `generate_dummy_logs.sh` : rend le script non portable et casse la génération si on n'est pas à la racine.
-- **Tri interne à `awk`** : le `cmd = "sort ... | head ..."` fork des processus pour chaque exécution, alors qu'un tri externe après `awk` serait plus propre.
+1. **Parsing manuel des options au lieu de getopts** : L'objectif `arguments_getopts` n'est pas démontré. La boucle while/case/shift est fonctionnelle mais ne satisfait pas la notion ciblée.
+2. **Pipe sort à l'intérieur de awk** : Le tri du top est effectué via un pipe interne dans awk (`print ... | cmd`). Cela fonctionne mais complique la lisibilité et le debug.
+3. **Absence de trap de signaux** : Même sans fichier temporaire, un trap EXIT/INT/TERM aurait démontré la maîtrise de la gestion des interruptions.
+4. **Ordre non déterministe des IPs en erreur** : La boucle `for (ip in ip_err)` produit un ordre aléatoire, ce qui nuit à la reproductibilité.
 
 ## Points forts
 
-- Respect des exit codes imposés pour les cas testés (1, 2, 3, 4).
-- Découpage fonctionnel clair (`usage`, `parse_args`, `validate_args`, `analyze_text`, `analyze_json`, `main`).
-- `set -euo pipefail` et validation des entrées présentes.
-- Quoting systématique et aucune injection `eval`.
-- Un seul passage `awk` pour l'agrégation en mode texte.
+- Structure fonctionnelle claire (parse_args, validate_args, analyze_text, analyze_json, main).
+- Respect des contraintes de base : un seul awk, un seul passage, LC_ALL=C pour sort.
+- Validation des entrées (fichier, format, entiers) et exit codes distincts.
+- Quoting systématique et aucune utilisation d'eval.
+- shellcheck sans warning.
 
 ## Points faibles
 
-- Livrable de lecture `tests/NOTES.md` manquant.
-- Pas de gestion des lignes malformées ou JSON invalides.
-- `analyze_json` en `jq -s` est fragile et difficile à maintenir.
-- Générateur de données défectueux (chemin absolu).
-- Pas de tests automatisés (bats) ni d'intégration continue shellcheck.
+- Non-utilisation de getopts malgré l'objectif explicite.
+- Absence du livrable tests/NOTES.md.
+- Le mode text sur un fichier JSONL produit des résultats faux (cf. test fourni), ce qui montre que la distinction format d'entrée n'est pas correctement testée.
+- Pas de gestion des signaux ni de trap.
+- L'ordre des IPs en erreur n'est pas trié.
+- Le jq -s charge tout le fichier en mémoire, ce qui peut poser problème pour de gros logs.
 
 ## Recommandations
 
-1. **Revoir le parsing des arguments** : utiliser `getopts` pour les options courtes et une boucle séparée pour les longues, ou au minimum justifier le choix en connaissance de cause.
-2. **Ajouter un `trap`** : même sans fichier temporaire, un `trap` de nettoyage est recommandé pour la robustesse et l'objectif `trappage_signaux`.
-3. **Remplacer `jq -s`** par un traitement streaming (`jq -c` ou `jq --stream`) pour éviter de charger tout le fichier.
-4. **Corriger `generate_dummy_logs.sh`** : utiliser des chemins relatifs cohérents avec l'arborescence (`./data/...`).
-5. **Créer `tests/NOTES.md`** avec les explications ShellCheck demandées.
-6. **Ajouter des tests unitaires** (bats) pour les cas limites : fichier vide, option sans argument, ligne malformée, N > nb endpoints.
-7. **Intégrer shellcheck** dans un hook ou CI pour garantir 0 warning.
+1. **Revoir getopts** : Implémenter le parsing avec getopts pour les options courtes, en combinant éventuellement avec une boucle pour les options longues (ou utiliser getopt externe). Justifier le choix au débrief.
+2. **Rédiger tests/NOTES.md** : Y inclure les 5 codes ShellCheck demandés et leur explication.
+3. **Tester les formats séparément** : Vérifier que `-f text` est utilisé sur `access.log` et `-f json` sur `access.jsonl`, et que les métriques correspondent.
+4. **Ajouter un trap** : Même minimal (`trap 'echo Interrupted >&2; exit 130' INT TERM`) pour démontrer la gestion des signaux.
+5. **Trier les IPs en erreur** : Utiliser `asort` en awk ou un tri externe pour un ordre déterministe.
+6. **Éviter le pipe interne awk** : Sortir les données du top dans un fichier temporaire ou utiliser un pipe externe après l'exécution awk.
+7. **Considérer une approche streaming pour jq** : Pour les gros fichiers, éviter `-s` et traiter ligne par ligne si possible.
 
-## Exercices futurs suggérés
+## Conclusion
 
-- Écrire un script équivalent en utilisant `getopts` + support long manuel.
-- Implémenter un mode streaming pour JSONL avec `jq` sans slurp.
-- Ajouter un fichier temporaire avec `mktemp` et `trap` pour illustrer la gestion des signaux.
-- Étendre les tests avec `bats` pour couvrir les cas limites.
+Le script est fonctionnel et respecte les contraintes de base, mais ne démontre pas toutes les notions ciblées, notamment `arguments_getopts` et `explication`. La robustesse est bonne mais perfectible. Avec les corrections ci-dessus, l'exercice pourrait être validé.
