@@ -91,9 +91,14 @@ jobs:
               m = re.match(r"^(\d{3})-", name)
               if m:
                   max_n = max(max_n, int(m.group(1)))
-          dir_name = f"{max_n + 1:03d}-{primary}"
+          num = f"{max_n + 1:03d}"
+          dir_name = f"{num}-{primary}"
           out_dir = os.path.join(exercises_dir, dir_name)
           os.makedirs(out_dir, exist_ok=True)
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as fh:
+              fh.write(f"EXO_NUM={num}\n")
+              fh.write(f"EXO_NOTION={primary}\n")
 
           exercises = sorted(glob.glob(os.path.join(repo, "exercises", "*", "exercise.md")))
           last_exercise = read(os.path.relpath(exercises[-1], repo)) if exercises else "(aucun)"
@@ -145,7 +150,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          BRANCH="bot/exercise-$(date +%F)-run${{ github.run_number }}"
+          BRANCH="exo${EXO_NUM}/${EXO_NOTION}"
           git config user.name "devopsforge-bot"
           git config user.email "bot@devopsforge.local"
           git checkout -b "$BRANCH"
@@ -157,5 +162,5 @@ jobs:
           git commit -m "feat: generate exercise"
           git push -u origin "$BRANCH"
           gh pr create --base main --head "$BRANCH" \
-            --title "Exercice $(ls exercises/ | sort | tail -1)" \
-            --body "Généré automatiquement par DevOpsForge. À résoudre dans \`exercises/$(ls exercises/ | sort | tail -1)/code/\` puis à soumettre via \`submission.md\` (auto-évaluation) dans le même dossier."
+            --title "Exercice ${EXO_NUM} — ${EXO_NOTION}" \
+            --body "Généré automatiquement par DevOpsForge. À résoudre dans \`exercises/${EXO_NUM}-${EXO_NOTION}/code/\` puis à soumettre via \`submission.md\` (auto-évaluation) dans le même dossier."

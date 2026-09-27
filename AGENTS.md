@@ -47,7 +47,7 @@ Le chemin du repo privé est passé aux scripts via la variable d'env `PROFILE_R
 
 Tout changement arrive sur `main` via PR (branche protégée : PR + 1 approbation + status checks).
 
-- `generate-exercise.yml` : `workflow_dispatch` + cron `0 6 * * 1-5` → clone le repo privé, détermine `NNN` + notion prioritaire, génère `exercises/NNN-notion/exercise.md` → ouvre une PR `bot/exercise-*`.
+- `generate-exercise.yml` : `workflow_dispatch` + cron `0 6 * * 1-5` → clone le repo privé, détermine `NNN` + notion prioritaire, génère `exercises/NNN-notion/exercise.md` → ouvre une PR sur la branche `exoNNN/<notion>`.
 - `analyze-session.yml` : `pull_request` sur `exercises/**/submission.md` → lint (`shellcheck`/`flake8` sur les fichiers de `code/`) + anti-patterns + LLM → commit `exercises/NNN-notion/analysis.md` + approbation.
 - `update-profile.yml` : `push` sur `main` (`exercises/**/analysis.md`) + `workflow_dispatch` → clone le repo privé → `scripts/update_profile.py` (via `PROFILE_REPO_PATH`) → push direct sur le repo privé.
 

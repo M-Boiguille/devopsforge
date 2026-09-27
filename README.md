@@ -31,7 +31,7 @@ Chaque exercice est auto-contenu : un dossier numéroté (`001`, `002`…) nomm�
 
 Tout changement arrive sur `main` via **PR** (branche protégée : PR + 1 approbation + status checks).
 
-1. **Génération** — `generate-exercise.yml` (cron `0 6 * * 1-5` ou `workflow_dispatch`) lit `profile/`+`dues.yaml` du repo privé, détermine le prochain `NNN` et la notion prioritaire, génère `exercises/NNN-notion/exercise.md`, puis ouvre une PR `bot/exercise-*`.
+1. **Génération** — `generate-exercise.yml` (cron `0 6 * * 1-5` ou `workflow_dispatch`) lit `profile/`+`dues.yaml` du repo privé, détermine le prochain `NNN` et la notion prioritaire, génère `exercises/NNN-notion/exercise.md`, puis ouvre une PR sur la branche `exoNNN/<notion>`.
 2. **Soumission** — tu résous l'exercice dans `exercises/NNN-notion/code/`, remplis l'auto-évaluation dans `submission.md`, et ouvres une PR vers `main`.
 3. **Analyse** — `analyze-session.yml` (`pull_request` sur `exercises/**/submission.md`) lance `shellcheck`/`flake8` sur tes fichiers, évalue via LLM, committe `analysis.md` et **approuve** la PR.
 4. **Mise à jour** — au merge, `update-profile.yml` (`push` sur `main`) clone le repo privé, exécute `scripts/update_profile.py` (scores, `due_at`, `dues.yaml`) et pousse le résultat.
@@ -77,7 +77,7 @@ Le repo privé `devopsforge-profile` n'a pas de protection : le bot pousse direc
 
 1. Configurer les secrets/variables ci-dessus + la protection de branche.
 2. GitHub → Actions → `generate-exercise` → **Run workflow**.
-3. Une PR `bot/exercise-*` s'ouvre ; relire et **merger**.
+3. Une PR s'ouvre sur la branche `exoNNN/<notion>` ; relire et **merger**.
 
 ## Soumettre un exercice
 
