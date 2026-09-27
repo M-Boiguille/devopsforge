@@ -3,166 +3,167 @@ date: '2026-09-27'
 notions:
 - notion: bash_scripting
   scores:
-    connaissance: 0.5
-    implementation: 0.3
-    debug: 0.2
-    explication: 0.5
-    design: 0.4
-    securite: 0.5
-    performance: 0.5
-  anti_patterns:
-  - signal_handling_failure
-  strengths:
-  - Tentative de gestion des signaux avec trap
-  weaknesses:
-  - Le SIGTERM sous Docker conduit à un exit 137 au lieu de 143, preuve que le signal
-    n'est pas traité correctement en PID 1
-- notion: file_parsing
-  scores:
     connaissance: 0.6
-    implementation: 0.7
-    debug: 0.6
-    explication: 0.6
-    design: 0.6
-    securite: 0.5
-    performance: 0.5
-  anti_patterns: []
-  strengths:
-  - Mode stdin implémenté et testé (comparaison locale/Docker)
-  - Gestion des chemins différenciés (exclusion du champ file)
-  weaknesses:
-  - Pas de preuve explicite de robustesse sur entrées malformées
-- notion: images
-  scores:
-    connaissance: 0.5
-    implementation: 0.5
+    implementation: 0.4
     debug: 0.4
-    explication: 0.4
+    explication: 0.7
     design: 0.5
     securite: 0.5
     performance: 0.5
+  anti_patterns:
+  - ineffective_signal_handling
+  - blocking_read_without_timeout
+  strengths:
+  - trap TERM/INT/EXIT mis en place
+  - documentation du problème dans l'ADR
+  weaknesses:
+  - SIGTERM ne provoque pas l'arrêt propre (timeout 137 au lieu de 143)
+  - lecture stdin bloquante non interrompue par les signaux
+- notion: file_parsing
+  scores:
+    connaissance: 0.8
+    implementation: 0.9
+    debug: 0.8
+    explication: 0.7
+    design: 0.8
+    securite: 0.7
+    performance: 0.8
   anti_patterns: []
   strengths:
-  - Utilisation d'un Dockerfile multi-stage probable (non documenté en détail)
+  - stdin == fichier prouvé (mêmes chiffres)
+  - gestion du top_n clampé
   weaknesses:
-  - Taille d'image non mentionnée, pas de preuve de cache de layers exploité
-- notion: containers
+  - pas de preuve explicite du test JSON streaming
+- notion: images
   scores:
-    connaissance: 0.5
-    implementation: 0.4
-    debug: 0.3
-    explication: 0.4
-    design: 0.4
-    securite: 0.5
-    performance: 0.4
-  anti_patterns:
-  - missing_healthcheck
-  - missing_resource_limits
-  strengths:
-  - ENTRYPOINT/CMD respecté (implicite)
-  - Read-only et non-root mentionnés
-  weaknesses:
-  - Healthcheck non documenté
-  - Resource limits (--memory, --cpus) non démontrés
-  - Problème de signalement sous Docker
-- notion: best_practices
-  scores:
-    connaissance: 0.6
-    implementation: 0.6
+    connaissance: 0.7
+    implementation: 0.8
     debug: 0.5
-    explication: 0.5
+    explication: 0.6
     design: 0.6
     securite: 0.7
-    performance: 0.5
-  anti_patterns: []
+    performance: 0.6
+  anti_patterns:
+  - unoptimized_layer_order
+  - unnecessary_package
+  - apk_update_redundant
+  - missing_labels
   strengths:
-  - Utilisateur non-root, volumes read-only, pas de secrets en dur (supposé)
+  - multi-stage réel avec stage lint
+  - image finale < 30 MB (11.8 MB)
   weaknesses:
-  - Pas de preuve de .dockerignore minimal
-  - Base image pas spécifiée précisément
+  - COPY avant RUN apk add invalide le cache des dépendances
+  - installation de bash non justifiée
+  - apk update superflu avec --no-cache
+- notion: containers
+  scores:
+    connaissance: 0.7
+    implementation: 0.7
+    debug: 0.4
+    explication: 0.4
+    design: 0.7
+    securite: 0.7
+    performance: 0.4
+  anti_patterns:
+  - missing_resource_limits_documentation
+  - no_resource_limit_test
+  strengths:
+  - ENTRYPOINT exec form correct
+  - CMD par défaut --help
+  - HEALTHCHECK présent
+  weaknesses:
+  - limites --memory et --cpus non documentées ni testées
+  - pas de preuve de raisonnement sur les ressources
+- notion: best_practices
+  scores:
+    connaissance: 0.9
+    implementation: 0.9
+    debug: 0.8
+    explication: 0.7
+    design: 0.9
+    securite: 0.95
+    performance: 0.9
+  anti_patterns:
+  - missing_dockerignore_evidence
+  strengths:
+  - utilisateur non-root uid 10001 effectif
+  - COPY --chown au lieu de RUN chown
+  - image minimale alpine, aucun secret détecté
+  weaknesses:
+  - preuve de .dockerignore non fournie
 - notion: volumes
   scores:
-    connaissance: 0.6
-    implementation: 0.7
-    debug: 0.6
-    explication: 0.5
-    design: 0.6
-    securite: 0.6
-    performance: 0.5
+    connaissance: 0.85
+    implementation: 0.9
+    debug: 0.8
+    explication: 0.7
+    design: 0.85
+    securite: 0.9
+    performance: 0.8
   anti_patterns: []
   strengths:
-  - Utilisation de bind mounts en lecture seule
-  - Preuve d'immutabilité via --read-only
-  weaknesses:
-  - Pas de démonstration explicite de l'échec si volume absent
+  - montage en lecture seule (:ro) fonctionnel
+  - test --read-only passé
+  - gestion du volume absent (exit 2)
+  weaknesses: []
 calibration:
   overconfidence: false
   underconfidence: false
-  notes: L'auto-évaluation (ADR) documente honnêtement les problèmes rencontrés, notamment
-    l'échec du SIGTERM sous Docker (exit 137 au lieu de 143). Aucune sur-confiance
-    détectée. Légère sous-confiance possible car les réussites ne sont pas toutes
-    mises en avant (par exemple, la conformité aux bonnes pratiques Docker n'est pas
-    détaillée). L'étudiant semble avoir une vision réaliste de son travail.
+  notes: L'auto-évaluation fournie est factuelle et honnête. L'étudiant reconnaît
+    l'échec du test SIGTERM et documente les problèmes sans les masquer. Aucune surconfiance
+    détectée. Cependant, plusieurs preuves exigées par l'énoncé ne sont pas fournies
+    (test JSON validé, test avec limites mémoire/CPU, test de cache de build), ce
+    qui pourrait indiquer une légère sous-déclaration. Globalement, calibration neutre.
 ---
-# Rapport d'évaluation — LogSentry Incrément 2 : Dockerisation
+# Rapport d'évaluation — LogSentry Incrément 2
 
-## Synthèse globale
+## Scores globaux par dimension (moyenne sur les notions)
 
-L'étudiant a réalisé une grande partie du travail demandé : déplacement du projet, mise en place d'un dépôt Git distant local, Dockerisation avec une image non-root et volumes read-only. Cependant, certains points critiques restent non résolus, notamment la gestion des signaux sous Docker (problème de PID 1) et l'absence de preuves documentées pour plusieurs critères (healthcheck, resource limits, taille d'image, .dockerignore).
-
-## Scores par dimension (moyenne des notions)
-
-| Dimension | Score moyen | Commentaire |
-|-----------|-------------|-------------|
-| Connaissance | 0.55 | Compréhension partielle des concepts, mais des lacunes sur la gestion des signaux en conteneur. |
-| Implémentation | 0.52 | Le Dockerfile et les scripts existent, mais des éléments essentiels manquent ou ne sont pas documentés. |
-| Debug | 0.43 | Problème de SIGTERM non résolu, pas de preuve de tests de cas limites. |
-| Explication | 0.48 | L'ADR est succinct, les notes de lecture ne sont pas fournies. |
-| Design | 0.52 | Structure probablement correcte, mais pas de démonstration de lisibilité ou de .dockerignore. |
-| Sécurité | 0.57 | Bonnes pratiques partielles (non-root, read-only), mais non exhaustives. |
-| Performance | 0.48 | Taille d'image non vérifiée, pas de cache démontré, limites de ressources non testées. |
+- Connaissance : 0.76
+- Implémentation : 0.78
+- Debug : 0.62
+- Explication : 0.64
+- Design : 0.74
+- Sécurité : 0.79
+- Performance : 0.67
 
 ## Analyse de calibration
 
-L'auto-évaluation est factuelle et reconnaît les échecs (SIGTERM). Pas de sur-confiance, l'étudiant semble conscient de ses lacunes. Une légère sous-confiance pourrait exister car les acquis ne sont pas mis en avant. Globalement, la calibration est bonne.
+L'auto-évaluation fournie est factuelle et honnête : elle reconnaît l'échec du test SIGTERM (timeout 137) et documente les problèmes rencontrés sans chercher à les masquer. Aucune surconfiance détectée ; l'étudiant ne revendique pas de succès non démontré. Cependant, certaines preuves demandées par l'énoncé ne sont pas fournies (test JSON validé, test avec limites mémoire/CPU, test de cache de build), ce qui suggère une légère sous-déclaration ou omission. Globalement, la calibration est neutre.
 
 ## Anti-patterns détectés
 
-- **Signal handling failure** : Le script ne gère pas correctement SIGTERM en tant que PID 1, ce qui provoque un arrêt forcé (exit 137) au lieu d'un arrêt propre (exit 143).
-- **Missing healthcheck** : Aucune instruction HEALTHCHECK n'est documentée dans le Dockerfile, contrairement à l'exigence.
-- **Missing resource limits** : Aucune démonstration de `--memory` ou `--cpus`, ni de raisonnement sur leur valeur.
-- **Absence de preuve de .dockerignore** : le fichier n'est pas mentionné, ce qui peut laisser filtrer des secrets ou des fichiers inutiles.
-- **Taille d'image non vérifiée** : le critère < 30 MB n'est pas confirmé.
+| Notion | Anti-pattern |
+|---|---|
+| bash_scripting | Gestion des signaux inefficace (SIGTERM ne termine pas le processus) |
+| images | Ordre des couches non optimisé pour le cache (COPY avant installation des dépendances) |
+| images | Installation de bash sans justification explicite |
+| containers | Absence de documentation et de test des limites de ressources (--memory, --cpus) |
+| best_practices | Preuve de .dockerignore non fournie |
 
 ## Points forts
 
-- Utilisation d'un dépôt Git local pour simuler un workflow distant.
-- Correction de bugs de parsing (espaces, JSONL).
-- Comparaison des sorties locale/Docker avec exclusion intelligente du champ `file`.
-- Mise en place d'un utilisateur non-root et de volumes read-only.
+- Image finale très petite (11.8 MB), respectant largement le seuil de 30 MB.
+- Utilisateur non-root `sentry` avec uid 10001 effectif, confirmé.
+- Multi-stage réel : le stage lint exécute shellcheck et fait échouer le build en cas de warning.
+- ENTRYPOINT en exec form et CMD par défaut corrects ; HEALTHCHECK présent.
+- Montage de volume en lecture seule (`:ro`) et test du mode `--read-only` fonctionnels.
+- Gestion du stdin équivalente au mode fichier (chiffres identiques).
+- Robustesse partielle : volume absent (exit 2), format invalide (exit 3), top_n > endpoints clampé.
 
 ## Points faibles
 
-- Échec de la gestion des signaux sous Docker (problème PID 1 non résolu).
-- Documentation insuffisante : pas de NOTES.md fourni, pas de détails sur le Dockerfile.
-- Manque de preuves pour plusieurs critères (healthcheck, resource limits, taille, .dockerignore).
-- Aucune mention du stage de lint dans le Dockerfile, ce qui est un objectif majeur.
+- **Échec du test SIGTERM** : le conteneur ne s'arrête pas proprement en moins de 2 s ; exit 137 au lieu de 143. Le trap est présent mais ne fonctionne pas en situation de blocage sur lecture stdin.
+- **Cache de build sous-optimal** : l'ordre `COPY bin/` puis `RUN apk add` invalide le cache des dépendances à chaque modification du script.
+- **Justification manquante pour bash** : l'énoncé demandait de justifier l'installation de bash ; aucune justification fournie.
+- **Limites de ressources non documentées/testées** : l'énoncé exigeait de raisonner et documenter `--memory` et `--cpus`.
+- **Preuves incomplètes** : pas de test JSON validé par `jq`, pas de test de build avec warning shellcheck volontaire, pas de test de cache de build, pas de test avec `--memory=64m`.
 
 ## Recommandations
 
-### Lecture ciblée
-- **Docker documentation : PID 1 et gestion des signaux** — pour résoudre le problème de SIGTERM.
-- **Dockerfile best practices : HEALTHCHECK et resource limits** — pour compléter la configuration.
-- **Hadolint** — pour analyser le Dockerfile et détecter les anti-patterns.
-
-### Exercices futurs
-- Implémenter un gestionnaire de signaux correct pour le PID 1 (par exemple, utiliser `exec` dans le script ou un init léger).
-- Ajouter un HEALTHCHECK conforme et le tester avec `docker inspect`.
-- Documenter la taille de l'image et optimiser si nécessaire avec `dive`.
-- Fournir un `docker-compose.yml` avec `read_only`, `cap_drop`, `security_opt` pour renforcer la sécurité.
-- Tester explicitement les cas limites (volume absent, format bidon, top > endpoints) et noter les codes de sortie.
-- Rédiger un NOTES.md complet avec les résultats demandés.
-
-## Conclusion
-
-L'incrément 2 est partiellement réussi : la conteneurisation de base est en place, mais des points critiques (signaux, healthcheck, preuves) restent à finaliser. L'étudiant doit consolider ses connaissances sur la gestion des processus dans les conteneurs et fournir une documentation plus rigoureuse. La note globale se situerait autour de **55-65/100**, nécessitant une consolidation ciblée avant de passer à l'incrément 3.
+1. **Résoudre le problème de signal** : investiguer pourquoi le trap SIGTERM ne fonctionne pas lorsque le script est bloqué sur `read`. Utiliser `read -t` ou `trap` avec gestion d'interruption, ou modifier l'ENTRYPOINT pour utiliser `exec` ou un wrapper qui gère les signaux.
+2. **Optimiser l'ordre des couches** : placer l'installation des paquets avant la copie du code (`RUN apk add ...` puis `COPY --chown ...`), ou copier uniquement un fichier de dépendances factice avant.
+3. **Justifier ou supprimer bash** : si le script nécessite bash, l'écrire en commentaire dans le Dockerfile ; sinon, tenter de le rendre compatible `sh` pour réduire la surface.
+4. **Documenter et tester les limites** : exécuter `docker run --memory=64m --cpus=0.25` sur le fichier de log et noter le comportement ; expliquer le choix des limites.
+5. **Compléter les preuves manquantes** : fournir le test JSON, le test de build avec échec volontaire de lint, et le test de cache de build (mesurer le temps du second build).
+6. **Vérifier le `.dockerignore`** : s'assurer qu'il exclut bien `data/`, `.git/`, `tests/*.tmp`, `*.md`, `.gitignore` et le documenter.
