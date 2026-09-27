@@ -72,6 +72,7 @@ jobs:
           import os
           import re
           import sys
+          from datetime import date
           from pathlib import Path
 
           import requests
@@ -160,6 +161,7 @@ jobs:
 
           parsed = json.loads(extract_json(content))
           report = parsed.pop("report", "")
+          parsed["date"] = date.today().isoformat()  # force la date du runner (fiable)
 
           with open(os.path.join(dir_path, "analysis.md"), "w", encoding="utf-8") as fh:
               fh.write("---\n")

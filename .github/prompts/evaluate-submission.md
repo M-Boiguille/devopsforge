@@ -19,6 +19,8 @@ Tâches :
 Les 7 dimensions sont : connaissance, implementation, debug, explication, design, securite, performance.
 
 Pour chaque notion listée dans les Objectifs de l'exercice, produis une entrée dans `notions`.
+Les identifiants `notion` DOIVENT être repris **tels quels** depuis les Objectifs de l'exercice
+(ex. `bash_scripting`, `file_parsing`) : sans préfixe de domaine, sans réinvention.
 
 Format de sortie — JSON strict uniquement (aucun texte hors JSON) :
 
