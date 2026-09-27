@@ -25,7 +25,7 @@ jobs:
 
       - name: Lint (non-blocking)
         run: |
-          DIR=$(dirname "$(find exercises -name 'submission.md' | sort | tail -1)")
+          DIR=$(find exercises -name 'submission.md' | sed -E 's#^(exercises/[0-9]{3}-[^/]+)/.*#\1#' | sort -u | tail -1)
           echo "Lint sur $DIR"
           find "$DIR" -name '*.sh' -print0 | xargs -0 -r shellcheck || true
           find "$DIR" -name '*.py' -print0 | xargs -0 -r flake8 --max-line-length=100 || true
@@ -52,7 +52,7 @@ jobs:
 
       - name: Lint report
         run: |
-          DIR=$(dirname "$(find exercises -name 'submission.md' | sort | tail -1)")
+          DIR=$(find exercises -name 'submission.md' | sed -E 's#^(exercises/[0-9]{3}-[^/]+)/.*#\1#' | sort -u | tail -1)
           echo "EXERCISE_DIR=$DIR" >> "$GITHUB_ENV"
           {
             echo "=== shellcheck ==="
@@ -72,6 +72,7 @@ jobs:
           import os
           import re
           import sys
+          from datetime import date
           from pathlib import Path
 
           import requests
@@ -160,6 +161,7 @@ jobs:
 
           parsed = json.loads(extract_json(content))
           report = parsed.pop("report", "")
+          parsed["date"] = date.today().isoformat()  # force la date du runner (fiable)
 
           with open(os.path.join(dir_path, "analysis.md"), "w", encoding="utf-8") as fh:
               fh.write("---\n")
@@ -186,4 +188,4 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          gh pr review "${{ github.event.pull_request.number }}" --approve --body "Analyse automatique DevOpsForge terminée. Voir exercises/*/analysis.md."
+          gh pr review "${{ github.event.pull_request.number }}" --approve --body "Analyse automatique DevOpsForge terminée. Voir exercises/*/analysis.md." || echo "::warning::Approbation impossible (PR du bot ou déjà approuvée) — non bloquant."

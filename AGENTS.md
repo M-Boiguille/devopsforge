@@ -26,7 +26,7 @@ Le MVP couvre UNE seule boucle de bout en bout sur le domaine Linux (2 notions).
 ## Deux repos
 
 - `devopsforge` (public) : processus complet (workflows, prompts, scripts, config, exercises, specs).
-- `devopsforge-profile` (privé) : données de maîtrise uniquement (`profile/`, `dues.yaml`, `errors.log`) + backup `.specify/`.
+- `devopsforge-profile` (privé) : données de maîtrise (`profile/`, `dues.yaml`, `errors.log`) + `roadmap.yaml` (plan ordonné : la taxonomie complète ; le profil = l'état) + backup `.specify/`.
 
 ## Structure des données
 
