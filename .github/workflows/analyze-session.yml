@@ -26,9 +26,9 @@ jobs:
       - name: Lint (non-blocking)
         run: |
           DIR=$(find exercises -name 'submission.md' | sed -E 's#^(exercises/[0-9]{3}-[^/]+)/.*#\1#' | sort -u | tail -1)
-          echo "Lint sur $DIR"
-          find "$DIR" -name '*.sh' -print0 | xargs -0 -r shellcheck || true
-          find "$DIR" -name '*.py' -print0 | xargs -0 -r flake8 --max-line-length=100 || true
+          echo "Lint sur $DIR et fil-rouge"
+          find "$DIR" fil-rouge -name '*.sh' -print0 | xargs -0 -r shellcheck || true
+          find "$DIR" fil-rouge -name '*.py' -print0 | xargs -0 -r flake8 --max-line-length=100 || true
 
   evaluate:
     needs: lint
@@ -55,9 +55,9 @@ jobs:
           echo "EXERCISE_DIR=$DIR" >> "$GITHUB_ENV"
           {
             echo "=== shellcheck ==="
-            find "$DIR" -name '*.sh' -print0 | xargs -0 -r shellcheck || true
+            find "$DIR" fil-rouge -name '*.sh' -print0 | xargs -0 -r shellcheck || true
             echo "=== flake8 ==="
-            find "$DIR" -name '*.py' -print0 | xargs -0 -r flake8 --max-line-length=100 || true
+            find "$DIR" fil-rouge -name '*.py' -print0 | xargs -0 -r flake8 --max-line-length=100 || true
           } > /tmp/lint-report.txt || true
           echo "lint report captured for $DIR"
 
@@ -99,17 +99,23 @@ jobs:
           submission_text = read(os.path.join(dir_path, "submission.md"))
 
           code_parts = []
-          for root, dirs, files in os.walk(dir_path):
-              dirs[:] = [d for d in dirs if not d.startswith(".")]
-              for f in sorted(files):
-                  if f.endswith(".md"):
-                      continue
-                  p = os.path.join(root, f)
-                  try:
-                      content = read(p)
-                  except OSError:
-                      continue
-                  code_parts.append(f"### {os.path.relpath(p, dir_path)}\n{content}")
+          code_roots = []
+          fil_rouge = os.path.join(repo, "fil-rouge")
+          if os.path.isdir(fil_rouge):
+              code_roots.append(fil_rouge)
+          code_roots.append(dir_path)
+          for base in code_roots:
+              for root, dirs, files in os.walk(base):
+                  dirs[:] = [d for d in dirs if not d.startswith(".")]
+                  for f in sorted(files):
+                      if f.endswith(".md"):
+                          continue
+                      p = os.path.join(root, f)
+                      try:
+                          content = read(p)
+                      except OSError:
+                          continue
+                      code_parts.append(f"### {os.path.relpath(p, base)}\n{content}")
           code_content = "\n\n".join(code_parts) or "(aucun fichier de code)"
 
           haystack = code_content + "\n" + submission_text
@@ -166,6 +172,9 @@ jobs:
               fh.write("---\n")
               fh.write(report.rstrip() + "\n")
 
+          with open("/tmp/report.md", "w", encoding="utf-8") as fh:
+              fh.write(report.rstrip() + "\n")
+
           print(f"::notice::Analysis written to {os.environ['EXERCISE_DIR']}/analysis.md")
           PY
 
@@ -187,8 +196,7 @@ jobs:
         run: |
           PR=$(gh pr list --head "$GITHUB_REF_NAME" --state open --json number --jq '.[0].number' 2>/dev/null)
           if [ -z "$PR" ]; then
-            echo "::warning::Aucune PR ouverte pour la branche $GITHUB_REF_NAME — pas de commentaire."
+            echo "::warning::Aucune PR ouverte pour la branche $GITHUB_REF_NAME — pas de review."
             exit 0
           fi
-          gh pr comment "$PR" --body "Analyse terminée : voir \`exercises/*/analysis.md\`." || echo "::warning::commentaire impossible"
-          gh pr review "$PR" --approve --body "Analyse automatique DevOpsForge terminée." || echo "::warning::approbation impossible (non bloquant)"
+          gh pr review "$PR" --approve --body-file /tmp/report.md || echo "::warning::review impossible (non bloquant)"
