@@ -16,24 +16,28 @@ Les workflows publics lisent/écrivent le profil privé via `GH_TOKEN` (cross-re
 ## Structure d'un exercice
 
 ```
+fil-rouge/                     # TON code (projet fil rouge unique, évolue d'incrément en incrément)
+└── logsentry/
+    ├── bin/logsentry.sh       # le CLI (incrément 1)
+    ├── Dockerfile             # la conteneurisation (incrément 2)
+    └── tests/
+
 exercises/
-└── 001-bash_scripting/      # <NNN>-<notion principale>
-    ├── exercise.md          # généré par le bot (l'énoncé)
-    ├── code/                # TON code (par défaut ; sinon suis les consignes de l'exercice)
-    │   └── logscope.sh
-    ├── submission.md        # TON auto-évaluation (déclenche l'analyse)
-    └── analysis.md          # généré par le bot (scores + feedback)
+└── 001-bash_scripting/        # <NNN>-<notion principale>
+    ├── exercise.md            # généré par le bot (l'énoncé)
+    ├── submission.md          # TON auto-évaluation (déclenche l'analyse)
+    └── analysis.md            # généré par le bot (scores + feedback)
 ```
 
-Chaque exercice est auto-contenu : un dossier numéroté (`001`, `002`…) nommé d'après sa notion principale. Un recruteur voit d'un coup d'œil combien d'exercices tu as faits et sur quelles notions.
+Le code vit dans `fil-rouge/` (un seul projet qui grandit à chaque incrément). Chaque exercice est un dossier numéroté (`001`, `002`…) nommé d'après sa notion principale, contenant l'énoncé et l'auto-évaluation. Un recruteur voit d'un coup d'œil combien d'exercices tu as faits et sur quelles notions.
 
 ## Cycle de fonctionnement
 
 Tout changement arrive sur `main` via **PR** (branche protégée : PR + 1 approbation + status checks).
 
 1. **Génération** — `generate-exercise.yml` (cron `0 6 * * 1-5` ou `workflow_dispatch`) lit `profile/`+`dues.yaml` du repo privé, détermine le prochain `NNN` et la notion prioritaire, génère `exercises/NNN-notion/exercise.md`, puis ouvre une PR sur la branche `exoNNN/<notion>`.
-2. **Soumission** — tu résous l'exercice dans `exercises/NNN-notion/code/`, remplis l'auto-évaluation dans `submission.md`, et ouvres une PR vers `main`.
-3. **Analyse** — `analyze-session.yml` (`pull_request` sur `exercises/**/submission.md`) lance `shellcheck`/`flake8` sur tes fichiers, évalue via LLM, committe `analysis.md` et **approuve** la PR.
+2. **Soumission** — tu résous l'exercice dans `fil-rouge/`, remplis l'auto-évaluation dans `exercises/NNN-notion/submission.md`, et ouvres une PR vers `main`.
+3. **Analyse** — `analyze-session.yml` (`push` sur `exercises/**/submission.md`) lance `shellcheck`/`flake8` sur `fil-rouge/`, évalue via LLM, committe `analysis.md`, puis **poste le rapport complet en review** sur la PR et l'approuve.
 4. **Mise à jour** — au merge, `update-profile.yml` (`push` sur `main`) clone le repo privé, exécute `scripts/update_profile.py` (scores, `due_at`, `dues.yaml`) et pousse le résultat.
 5. *(Différé)* **Oubli** — `scripts/apply_decay.py` décroîtra les scores (`score * exp(-rate * jours)`), nice-to-have non câblé.
 
@@ -44,7 +48,8 @@ Tout changement arrive sur `main` via **PR** (branche protégée : PR + 1 approb
 .github/prompts/    # prompts LLM (génération, évaluation)
 scripts/            # update_profile.py, select_due_notions.py (+ apply_decay.py différé)
 config/             # thresholds, grading_weights, forgetting, agent (routage LLM)
-exercises/          # NNN-notion/{exercise,submission,analysis}.md + code/
+fil-rouge/          # TON code (projet fil rouge)
+exercises/          # NNN-notion/{exercise,submission,analysis}.md
 specs/              # spécification SpecKit du MVP
 tests/              # fixtures
 journal.md          # journal de progression
@@ -82,7 +87,7 @@ Le repo privé `devopsforge-profile` n'a pas de protection : le bot pousse direc
 ## Soumettre un exercice
 
 1. Créer une branche.
-2. Écrire ton code dans `exercises/NNN-notion/code/` (ou là où l'énoncé l'exige).
+2. Écrire ton code dans `fil-rouge/` (le projet fil rouge).
 3. Remplir `exercises/NNN-notion/submission.md` (auto-évaluation : ce qui a été fait, difficultés, confiance par notion).
 4. Ouvrir une PR vers `main` → le bot linte, analyse, committe `analysis.md` et approuve.
 5. **Merger** : le profil privé se met à jour automatiquement.
