@@ -2,7 +2,6 @@
 # backup dans devopsforge-profile
 .opencode/
 .specify/
-.repo_git_dummy/*
 
 # Python
 __pycache__/
