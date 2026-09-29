@@ -2,7 +2,7 @@
 
 Système d'apprentissage adaptatif pour une carrière DevOps (Linux → Docker → K8s → Terraform → Observabilité → DevSecOps).
 
-DevOpsForge remplace les flashcards statiques par des **exercices de code multi-conceptuels** avec spaced repetition (courbe d'Ebbinghaus). L'**IA est un tuteur, pas une béquille** : elle génère les exercices et évalue les soumissions ; toi, tu résous, en mode environnement de travail (PR, lint, status checks, git propre).
+DevOpsForge remplace les flashcards statiques par des **exercices de code multi-conceptuels** avec spaced repetition (**SM-2** : intervalles 1, 6, puis × facteur de facilité). L'**IA est un tuteur, pas une béquille** : elle génère les exercices et évalue les soumissions ; toi, tu résous, en mode environnement de travail (PR, lint, status checks, git propre).
 
 ## Architecture — deux repos
 
@@ -37,16 +37,15 @@ Tout changement arrive sur `main` via **PR** (branche protégée : PR + 1 approb
 
 1. **Génération** — `generate-exercise.yml` (cron `0 6 * * 1-5` ou `workflow_dispatch`) lit `profile/`+`dues.yaml` du repo privé, détermine le prochain `NNN` et la notion prioritaire, génère `exercises/NNN-notion/exercise.md`, puis ouvre une PR sur la branche `exoNNN/<notion>`.
 2. **Soumission** — tu résous l'exercice dans `fil-rouge/`, remplis l'auto-évaluation dans `exercises/NNN-notion/submission.md`, et ouvres une PR vers `main`.
-3. **Analyse** — `analyze-session.yml` (`push` sur `exercises/**/submission.md`) lance `shellcheck`/`flake8` sur `fil-rouge/`, évalue via LLM, committe `analysis.md`, puis **poste le rapport complet en review** sur la PR et l'approuve.
-4. **Mise à jour** — au merge, `update-profile.yml` (`push` sur `main`) clone le repo privé, exécute `scripts/update_profile.py` (scores, `due_at`, `dues.yaml`) et pousse le résultat.
-5. *(Différé)* **Oubli** — `scripts/apply_decay.py` décroîtra les scores (`score * exp(-rate * jours)`), nice-to-have non câblé.
+3. **Analyse** — `analyze-session.yml` (`push` sur `exercises/**/submission.md`) lance `shellcheck`/`flake8` sur `fil-rouge/`, évalue via LLM, committe `analysis.md`, puis **poste le rapport complet en commentaire de PR**.
+4. **Mise à jour** — au merge, `update-profile.yml` (`push` sur `main`) clone le repo privé, exécute `scripts/update_profile.py` (scores, `due_at` **SM-2**, `dues.yaml`) et pousse le résultat.
 
 ## Structure (repo public)
 
 ```text
 .github/workflows/  # génération, analyse, mise à jour (flux PR + cross-repo)
 .github/prompts/    # prompts LLM (génération, évaluation)
-scripts/            # update_profile.py, select_due_notions.py (+ apply_decay.py différé)
+scripts/            # update_profile.py, select_due_notions.py, _common.py (SM-2)
 config/             # thresholds, grading_weights, forgetting, agent (routage LLM)
 fil-rouge/          # TON code (projet fil rouge)
 exercises/          # NNN-notion/{exercise,submission,analysis}.md
@@ -89,7 +88,7 @@ Le repo privé `devopsforge-profile` n'a pas de protection : le bot pousse direc
 1. Créer une branche.
 2. Écrire ton code dans `fil-rouge/` (le projet fil rouge).
 3. Remplir `exercises/NNN-notion/submission.md` (auto-évaluation : ce qui a été fait, difficultés, confiance par notion).
-4. Ouvrir une PR vers `main` → le bot linte, analyse, committe `analysis.md` et approuve.
+4. Ouvrir une PR vers `main` → le bot linte, analyse, committe `analysis.md` et **poste le rapport en commentaire**.
 5. **Merger** : le profil privé se met à jour automatiquement.
 
 ## Développement local

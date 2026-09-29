@@ -17,7 +17,7 @@ Le MVP couvre UNE seule boucle de bout en bout sur le domaine Linux (2 notions).
 
 ## Conventions de nommage
 
-- Python : `snake_case` (`update_profile.py`, `apply_decay.py`)
+- Python : `snake_case` (`update_profile.py`, `select_due_notions.py`)
 - Workflows : `kebab-case` (`generate-exercise.yml`)
 - Sessions : `YYYY-MM-DD-<type>.md` (exercise, submission, analysis)
 - Notions : `snake_case` (`bash_scripting`, `file_parsing`)
@@ -39,18 +39,28 @@ Le chemin du repo privé est passé aux scripts via la variable d'env `PROFILE_R
 
 ## Scripts (Python 3.11+, deps : pyyaml, requests, python-dateutil)
 
-- `scripts/update_profile.py` : lit l'analyse, met à jour le profil, calcule `due_at` (Ebbinghaus), met à jour `dues.yaml`.
+- `scripts/update_profile.py` : lit l'analyse, met à jour le profil, calcule `due_at` (répétition espacée **SM-2** : qualité 0-5 + intervalles 1/6/×EF), met à jour `dues.yaml`. Filtre les notions hors `roadmap.yaml` (whitelist).
 - `scripts/select_due_notions.py` : retourne les notions dues prioritaires (YAML/JSON sur stdout).
-- `scripts/apply_decay.py` : décroissance quotidienne `score * exp(-rate * jours)` — **nice-to-have différé, non câblé**.
-- `scripts/_common.py` : helpers internes (dimensions, clamp, Ebbinghaus, localisation de notion).
+- `scripts/_common.py` : helpers internes (dimensions, clamp, SM-2, whitelist de notions, localisation de notion).
 
 ## Workflows
 
 Tout changement arrive sur `main` via PR (branche protégée : PR + 1 approbation + status checks).
 
 - `generate-exercise.yml` : `workflow_dispatch` + cron `0 6 * * 1-5` → clone le repo privé, détermine `NNN` + notion prioritaire, génère `exercises/NNN-notion/exercise.md` → ouvre une PR sur la branche `exoNNN/<notion>`.
-- `analyze-session.yml` : `push` sur `exercises/**/submission.md` → lint (`shellcheck`/`flake8` sur `fil-rouge/`) + anti-patterns + LLM → commit `exercises/NNN-notion/analysis.md` + review du rapport complet sur la PR + approbation.
+- `analyze-session.yml` : `push` sur `exercises/**/submission.md` → lint (`shellcheck`/`flake8` sur `fil-rouge/`) + anti-patterns + LLM → commit `exercises/NNN-notion/analysis.md` + **commentaire du rapport complet sur la PR**. L'étape de commit est `continue-on-error` (une course d'écriture avec l'auteur ne doit pas tuer le job).
 - `update-profile.yml` : `push` sur `main` (`exercises/**/analysis.md`) + `workflow_dispatch` → clone le repo privé → `scripts/update_profile.py` (via `PROFILE_REPO_PATH`) → push direct sur le repo privé.
+
+### ⚠️ Le bot n'approuve PAS les PR
+
+La PR est ouverte par le **compte du token** (`GH_TOKEN`). GitHub **interdit d'approuver sa propre PR** :
+la tentative `gh pr review --approve` échoue par design. Le flux réel est donc :
+
+1. le bot **analyse** et **commente** le rapport complet ;
+2. l'**approbation** est best-effort et **échoue si la PR est ouverte par le compte du bot** ;
+3. **l'humain merge**.
+
+Pour obtenir une vraie approbation automatique, il faudrait un **second compte** (approbateur ≠ auteur).
 
 ## Tests
 
