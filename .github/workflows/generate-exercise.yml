@@ -105,6 +105,7 @@ jobs:
 
           template = read(".github/prompts/generate-exercise.md")
           project_state = os.environ.get("PROJECT_STATE") or "(non renseigné au MVP)"
+          grading_weights = read("config/grading_weights.yaml")
 
           user_prompt = (
               template
@@ -113,6 +114,7 @@ jobs:
               .replace("{last_exercise}", last_exercise)
               .replace("{project_state}", project_state)
               .replace("{roadmap}", yaml.safe_dump(roadmap, allow_unicode=True, sort_keys=False))
+              .replace("{grading_weights}", grading_weights)
           )
 
           base_url = (os.environ.get("AI_GATEWAY_BASE_URL") or "https://api.deepseek.com/v1").rstrip("/")
@@ -147,14 +149,18 @@ jobs:
           BRANCH="exo${EXO_NUM}/${EXO_NOTION}"
           git config user.name "devopsforge-bot"
           git config user.email "bot@devopsforge.local"
-          git checkout -b "$BRANCH"
+          # Idempotent : la branche bot peut déjà exister (re-run d'un cron, exercice
+          # regénéré). `checkout -B` la repositionne, `--force-with-lease` pousse
+          # SANS écraser un travail humain non récupéré et SANS toucher à main.
+          git checkout -B "$BRANCH"
           git add exercises/
           if git diff --cached --quiet; then
             echo "No changes to commit"
             exit 0
           fi
           git commit -m "feat: generate exercise"
-          git push -u origin "$BRANCH"
+          git push -u origin "$BRANCH" --force-with-lease
           gh pr create --base main --head "$BRANCH" \
             --title "Exercice ${EXO_NUM} — ${EXO_NOTION}" \
-            --body "Généré automatiquement par DevOpsForge. À résoudre dans \`fil-rouge/\` (projet fil rouge) puis à soumettre via \`exercises/${EXO_NUM}-${EXO_NOTION}/submission.md\` (auto-évaluation)."
+            --body "Généré automatiquement par DevOpsForge. À résoudre dans \`fil-rouge/\` (projet fil rouge) puis à soumettre via \`exercises/${EXO_NUM}-${EXO_NOTION}/submission.md\` (auto-évaluation)." \
+            || gh pr edit "$BRANCH" --title "Exercice ${EXO_NUM} — ${EXO_NOTION}" || echo "::warning::PR déjà existante"
