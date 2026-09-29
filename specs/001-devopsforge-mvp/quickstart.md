@@ -13,10 +13,7 @@ cp scripts/../tests/fixtures/analysis-sample.md /tmp/analysis.md
 # (a) Mise à jour du profil depuis l'analyse
 python3 scripts/update_profile.py --analysis /tmp/analysis.md
 
-# (b) Décroissance quotidienne
-python3 scripts/apply_decay.py
-
-# (c) Sélection des notions dues
+# (b) Sélection des notions dues
 python3 scripts/select_due_notions.py --limit 3
 ```
 

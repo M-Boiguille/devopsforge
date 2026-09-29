@@ -30,6 +30,35 @@ jobs:
           find "$DIR" fil-rouge -name '*.sh' -print0 | xargs -0 -r shellcheck || true
           find "$DIR" fil-rouge -name '*.py' -print0 | xargs -0 -r flake8 --max-line-length=100 || true
 
+      - name: Test répétition espacée (SM-2)
+        # Test BLOQUANT : il peut faire échouer ce job (donc le status check `lint`).
+        # C'est le seul contrôle de sortie du repo : il vérifie que l'espacement
+        # produit des intervalles croissants, et que la formule morte a disparu.
+        run: |
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0, "scripts")
+          import _common as c
+
+          cfg = c.load_sr_config()
+
+          perfect = {d: 0.9 for d in c.DIMENSIONS}
+          q = c.quality_from_scores(perfect, cfg)
+          assert q >= 4, f"score parfait => qualite {q}"
+          i1, s1, e1 = c.sm2_next_interval(q, 0, cfg["ease_default"], 0, cfg)
+          i2, s2, e2 = c.sm2_next_interval(q, s1, e1, i1, cfg)
+          assert i2 > i1, f"2e intervalle {i2} <= 1er {i1}"
+
+          weak = {d: 0.2 for d in c.DIMENSIONS}
+          qw = c.quality_from_scores(weak, cfg)
+          iw, sw, ew = c.sm2_next_interval(qw, 5, 2.5, 30, cfg)
+          assert iw == 1 and sw == 0, "echec => intervalle 1, streak 0"
+
+          assert i2 >= 6, f"2e intervalle trop court: {i2}"
+          assert not hasattr(c, "ebbinghaus_days"), "ebbinghaus_days encore present"
+          print("OK - espacement SM-2 sain")
+          PY
+
   evaluate:
     needs: lint
     runs-on: ubuntu-latest
@@ -179,6 +208,9 @@ jobs:
           PY
 
       - name: Commit analysis
+        # Non bloquant : un push rejeté (course avec l'auteur humain sur la même branche)
+        # ne doit pas emporter le reste du job (le rapport reste postable en commentaire).
+        continue-on-error: true
         run: |
           git config user.name "devopsforge-bot"
           git config user.email "bot@devopsforge.local"
@@ -187,7 +219,9 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "feat: analyze submission"
-            git push origin "HEAD:$GITHUB_REF_NAME"
+            # La branche peut avoir avancé (l'apprenant pousse aussi dessus).
+            git pull --rebase --autostash origin "$GITHUB_REF_NAME" || true
+            git push origin "HEAD:$GITHUB_REF_NAME" || echo "::warning::push impossible (branche mise à jour par l'auteur) — non bloquant"
           fi
 
       - name: Notify on PR
@@ -199,4 +233,8 @@ jobs:
             echo "::warning::Aucune PR ouverte pour la branche $GITHUB_REF_NAME — pas de review."
             exit 0
           fi
-          gh pr review "$PR" --approve --body-file /tmp/report.md || echo "::warning::review impossible (non bloquant)"
+          # Le rapport est d'abord posté en COMMENTAIRE (fiable, toujours possible).
+          gh pr comment "$PR" --body-file /tmp/report.md || echo "::warning::commentaire impossible"
+          # L'approbation est best-effort : GitHub INTERDIT d'approuver sa propre PR.
+          # Comme la PR est ouverte par le compte du token, cette étape échoue par design.
+          gh pr review "$PR" --approve --body-file /tmp/report.md || echo "::warning::approbation impossible (auto-approbation interdite sur PR ouverte par le même compte) — non bloquant"

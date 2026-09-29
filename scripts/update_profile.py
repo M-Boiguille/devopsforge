@@ -53,15 +53,22 @@ def find_latest_analysis() -> Path:
     return candidates[-1]
 
 
-def update_profile(front_matter: dict, rate: float, threshold: float) -> None:
+def update_profile(front_matter: dict, sr_config: dict) -> None:
     notions = front_matter.get("notions") or []
     analysis_date = front_matter.get("date") or c.today_iso()
+    known = c.load_known_notions()
     newly_due: dict[str, dict] = {}
 
     for entry in notions:
         notion = entry.get("notion")
         scores = entry.get("scores") or {}
         if not notion:
+            continue
+
+        # Whitelist : la roadmap est la seule source d'identifiants de notions.
+        # Le LLM peut en inventer : on les rejette avant toute écriture.
+        if known and notion not in known:
+            c.log_error(f"Notion hors roadmap (whitelist) ignorée: {notion}")
             continue
 
         path, _domain = c.find_notion_location(notion)
@@ -91,13 +98,25 @@ def update_profile(front_matter: dict, rate: float, threshold: float) -> None:
         notion_data["scores"] = updated_scores
         notion_data["last_reviewed"] = analysis_date
 
-        avg_score = sum(updated_scores.values()) / len(c.DIMENSIONS)
-        days = c.ebbinghaus_days(avg_score, rate, threshold)
+        # Répétition espacée SM-2 : la qualité est déduite de la maîtrise réelle,
+        # puis l'intervalle suit SM-2 (1, 6, puis × EF).
+        previous_interval = int(notion_data.get("interval_days") or 0)
+        streak = int(notion_data.get("streak") or 0)
+        ease = float(notion_data.get("ease") or sr_config["ease_default"])
+        quality = c.quality_from_scores(updated_scores, sr_config)
+        interval, streak, ease = c.sm2_next_interval(
+            quality, streak, ease, previous_interval, sr_config
+        )
+        notion_data["interval_days"] = int(interval)
+        notion_data["streak"] = int(streak)
+        notion_data["ease"] = round(float(ease), 4)
+
         from datetime import date as _date, timedelta
 
-        due_date = (_date.fromisoformat(analysis_date) + timedelta(days=days)).isoformat()
+        due_date = (_date.fromisoformat(analysis_date) + timedelta(days=interval)).isoformat()
         notion_data["due_at"] = due_date
 
+        threshold = float(sr_config["review_threshold"])
         weak_dims = [d for d in c.DIMENSIONS if updated_scores.get(d, 1.0) < threshold]
         if weak_dims:
             min_weak = min(updated_scores[d] for d in weak_dims)
@@ -109,7 +128,7 @@ def update_profile(front_matter: dict, rate: float, threshold: float) -> None:
             }
 
         c.save_yaml(path, data)
-        print(f"[update] {notion} → avg={avg_score:.2f} due_at={due_date}")
+        print(f"[update] {notion} → q={quality} interval={interval}j due_at={due_date}")
 
     if newly_due:
         sync_dues(newly_due)
@@ -136,8 +155,8 @@ def main() -> int:
         c.log_error(str(exc))
         return 1
 
-    rate, threshold = c.load_forgetting()
-    update_profile(front_matter, rate, threshold)
+    sr_config = c.load_sr_config()
+    update_profile(front_matter, sr_config)
     return 0
 
 

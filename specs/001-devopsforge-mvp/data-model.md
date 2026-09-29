@@ -39,14 +39,14 @@ Fichiers sous `exercises/` au format `YYYY-MM-DD-<type>.md`.
 
 - `config/thresholds.yaml` : seuils de difficulté, maîtrise, revue, entretien.
 - `config/grading_weights.yaml` : poids de notation par type d'exercice.
-- `config/forgetting.yaml` : paramètres de la courbe d'Ebbinghaus.
+- `config/forgetting.yaml` : paramètres de répétition espacée (**SM-2** : seuils de maîtrise, facteur de facilité, intervalles).
 - `config/agent.yaml` : routage des modèles LLM par tâche.
 
 ## State transitions (Notion)
 
 ```
-[0.0 initial] → review → scores mis à jour + last_reviewed/due_at → decay quotidien → sous-seuil → due → review …
+[0.0 initial] → review → scores mis à jour + last_reviewed/due_at (SM-2) → notion due quand une dimension < review_threshold → review …
 ```
 
-`due_at` est recalculé à chaque revue ; `apply_decay.py` abaisse les scores et re-marque les notions sous
-`review_threshold` (0.80).
+`due_at` est recalculé à chaque revue via **SM-2** (intervalle = 1, 6, puis × facteur de facilité) ; une notion est marquée due
+lorsqu'une de ses dimensions passe sous `review_threshold` (0.80). Il n'existe **aucune décroissance destructive** des scores.

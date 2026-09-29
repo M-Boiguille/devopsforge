@@ -16,6 +16,20 @@ Tâches :
 4. Détecte les patterns d'erreurs récurrents.
 5. Produis un rapport structuré en Markdown.
 
+Règles strictes :
+- **Grille imposée** : utilise EXACTEMENT les poids fournis dans {grading_weights}. N'invente
+  aucun autre barème, ne renomme aucune dimension, ne recalcule aucun pourcentage.
+- **Teach-back (`explication`)** : si un fichier `NOTES.md` est présent dans le dossier de
+  l'exercice, lis-le et note la dimension `explication` dessus en priorité (l'apprenant doit
+  expliquer avec SES mots, sans jargon recopié). Absence de `NOTES.md` => `explication` <= 0.5.
+- **Test de debug** : si l'énoncé est un exercice de debug (script cassé à diagnostiquer),
+  la dimension `debug` est évaluée sur la justesse du diagnostic et de la réparation, PAS
+  sur une réécriture complète.
+- **Interdit d'halluciner une preuve** : ne jamais écrire « présumé », « probablement » ou
+  « sans warning » pour un fait présent dans {lint_report} ou {submission}. Si une information
+  est absente des entrées, écris explicitement « non fourni ». Une note ne s'appuie que sur
+  une preuve présente dans les entrées.
+
 Les 7 dimensions sont : connaissance, implementation, debug, explication, design, securite, performance.
 
 Pour chaque notion listée dans les Objectifs de l'exercice, produis une entrée dans `notions`.

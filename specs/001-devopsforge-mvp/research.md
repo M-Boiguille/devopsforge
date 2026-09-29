@@ -14,15 +14,22 @@ humaine et OpenClaw (plus tard).
 
 ## Décision 2 : Calcul de `due_at` (spaced repetition)
 
-**Décision** : `due_at = last_reviewed + jours`, où `jours = ln(score / review_threshold) / rate`, borné `[1, 30]`.
+**Décision** : répétition espacée **SM-2**. La qualité de récupération (`0..5`) est déduite de la maîtrise
+multidimensionnelle réelle (`quality_from_scores`), puis l'intervalle suit SM-2 : 1 jour, 6 jours, puis
+`intervalle_precedent × ease` (facteur de facilité, plancher 1.3), plafonné à 180 jours. Un échec
+(qualité < 3) ramène à 1 jour et remet la série à zéro.
 
-**Rationnel** : La courbe d'Ebbinghaus `score * exp(-rate * jours)` donne directement le nombre de jours avant
-que le score retombe sous `review_threshold` (0.80). C'est une utilisation cohérente et défendable de la formule
-fournie dans `forgetting.yaml`, sans inventer de calendrier arbitraire.
+**Rationnel** : L'ancienne formule (`jours = ln(score / review_threshold) / rate`, `rate: 0.30`) était
+**mathématiquement morte** : un score borné `[0,1]` ne peut jamais produire plus de **0.744 jour**, donc
+`due_at = last_reviewed + 1` pour *toutes* les notions. La « sélection des notions dues » ne sélectionnait
+donc rien. SM-2 est l'algorithme de facto (Anki, SuperMemo) et produit des intervalles qui croissent
+réellement avec la maîtrise.
 
 **Alternatives envisagées** :
-- Intervalles fixes (1/3/7/14 jours) → ne respecte pas la formule d'Ebbinghaus demandée.
-- SM-2 complet → sur-ingénierie pour le MVP.
+- Conserver l'échelle d'Ebbinghaus en changeant `rate` → reste un modèle de décroissance, pas un modèle
+  d'ordonnancement ; ne distingue pas « bien su une fois » de « su durablement ».
+- Intervalles fixes (1/3/7/14 jours) → ignore la maîtrise réelle ; ce que la recherche en pratique
+  espacée déconseille.
 
 ## Décision 3 : Mise à jour des scores (moyenne mobile)
 
