@@ -32,7 +32,8 @@ Le MVP couvre UNE seule boucle de bout en bout sur le domaine Linux (2 notions).
 
 - `profile/<domaine>.yaml` (repo privé) → `notions.<nom>.scores.{connaissance,implementation,debug,explication,design,securite,performance}`
 - `dues.yaml` (repo privé) → `dues[]` : `{notion, dimensions[], priority, due_since}`
-- `exercises/NNN-notion/` (repo public) → `exercise.md` (énoncé), `code/` (ton travail), `submission.md` (auto-éval), `analysis.md` (front-matter YAML machine-readable + corps Markdown ; contrat : `specs/001-devopsforge-mvp/contracts/analysis-format.md`)
+- `fil-rouge/` (repo public) → ton code (projet fil rouge unique qui grandit à chaque incrément)
+- `exercises/NNN-notion/` (repo public) → `exercise.md` (énoncé), `submission.md` (auto-éval), `analysis.md` (front-matter YAML machine-readable + corps Markdown ; contrat : `specs/001-devopsforge-mvp/contracts/analysis-format.md`)
 
 Le chemin du repo privé est passé aux scripts via la variable d'env `PROFILE_REPO_PATH` (défaut : racine locale).
 
@@ -48,7 +49,7 @@ Le chemin du repo privé est passé aux scripts via la variable d'env `PROFILE_R
 Tout changement arrive sur `main` via PR (branche protégée : PR + 1 approbation + status checks).
 
 - `generate-exercise.yml` : `workflow_dispatch` + cron `0 6 * * 1-5` → clone le repo privé, détermine `NNN` + notion prioritaire, génère `exercises/NNN-notion/exercise.md` → ouvre une PR sur la branche `exoNNN/<notion>`.
-- `analyze-session.yml` : `pull_request` sur `exercises/**/submission.md` → lint (`shellcheck`/`flake8` sur les fichiers de `code/`) + anti-patterns + LLM → commit `exercises/NNN-notion/analysis.md` + approbation.
+- `analyze-session.yml` : `push` sur `exercises/**/submission.md` → lint (`shellcheck`/`flake8` sur `fil-rouge/`) + anti-patterns + LLM → commit `exercises/NNN-notion/analysis.md` + review du rapport complet sur la PR + approbation.
 - `update-profile.yml` : `push` sur `main` (`exercises/**/analysis.md`) + `workflow_dispatch` → clone le repo privé → `scripts/update_profile.py` (via `PROFILE_REPO_PATH`) → push direct sur le repo privé.
 
 ## Tests

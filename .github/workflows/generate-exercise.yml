@@ -137,12 +137,6 @@ jobs:
           with open(os.path.join(out_dir, "exercise.md"), "w", encoding="utf-8") as fh:
               fh.write(content.rstrip() + "\n")
 
-          # Scaffold par défaut : sous-dossier `code/` pour les fichiers de travail.
-          code_dir = os.path.join(out_dir, "code")
-          os.makedirs(code_dir, exist_ok=True)
-          with open(os.path.join(code_dir, ".gitkeep"), "w", encoding="utf-8") as fh:
-              pass
-
           print(f"::notice::Exercise written to exercises/{dir_name}/exercise.md")
           PY
 
@@ -163,4 +157,4 @@ jobs:
           git push -u origin "$BRANCH"
           gh pr create --base main --head "$BRANCH" \
             --title "Exercice ${EXO_NUM} — ${EXO_NOTION}" \
-            --body "Généré automatiquement par DevOpsForge. À résoudre dans \`exercises/${EXO_NUM}-${EXO_NOTION}/code/\` puis à soumettre via \`submission.md\` (auto-évaluation) dans le même dossier."
+            --body "Généré automatiquement par DevOpsForge. À résoudre dans \`fil-rouge/\` (projet fil rouge) puis à soumettre via \`exercises/${EXO_NUM}-${EXO_NOTION}/submission.md\` (auto-évaluation)."

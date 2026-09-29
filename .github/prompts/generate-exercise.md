@@ -11,6 +11,7 @@ Contraintes :
 - Intègre 3 à 8 notions, dont au moins 2 notions dues (cible à ajuster selon la granularité des ressources).
 - 80% pratique, 20% lecture (lien vers une ressource KodeKloud ou documentation officielle).
 - L'exercice doit s'inscrire dans le projet fil rouge (incrément).
+- Le code doit être écrit dans `fil-rouge/` (le projet fil rouge unique) : indique toujours ce chemin, jamais un sous-dossier `code/`.
 - Fournis une grille de notation pondérée selon le type d'exercice.
 - Ton : exigeant mais bienveillant.
 
