@@ -8,8 +8,8 @@
 
 Construire le squelette fonctionnel de DevOpsForge : un cycle d'apprentissage adaptatif de bout en bout sur une
 seule notion. Trois workflows GitHub Actions (génération, analyse, mise à jour) + trois scripts Python
-(update_profile, apply_decay, select_due_notions) + un profil YAML multidimensionnel avec spaced repetition
-(courbe d'Ebbinghaus).
+(update_profile, select_due_notions, _common) + un profil YAML multidimensionnel avec spaced repetition
+(**SM-2**).
 
 ## Technical Context
 
@@ -79,8 +79,8 @@ config/
 └── forgetting.yaml
 scripts/
 ├── update_profile.py
-├── apply_decay.py
-└── select_due_notions.py
+├── select_due_notions.py
+└── _common.py
 .github/
 ├── workflows/
 │   ├── generate-exercise.yml

@@ -47,7 +47,7 @@ avec un front-matter YAML machine-readable (scores par notion et dimension, anti
 ### User Story 3 - Mettre à jour le profil multidimensionnel (Priority: P1)
 
 À partir d'un `analysis.md`, le profil `profile/*.yaml` est mis à jour (7 dimensions par notion), les échéances
-de révision (`due_at`) sont recalculées avec la courbe d'Ebbinghaus, et `dues.yaml` reflète les notions fragiles.
+de révision (`due_at`) sont recalculées avec l'algorithme **SM-2** (intervalles 1, 6, puis × facteur de facilité), et `dues.yaml` reflète les notions fragiles.
 
 **Why this priority**: C'est la boucle de rétroaction qui rend le système « adaptatif ».
 
@@ -63,8 +63,10 @@ de révision (`due_at`) sont recalculées avec la courbe d'Ebbinghaus, et `dues.
 
 ### User Story 4 - Appliquer l'oubli programmé (Différé — hors MVP)
 
-> **Différé** : la décroissance quotidienne des scores (courbe d'Ebbinghaus) est un nice-to-have, non inclus
-> dans le MVP. Le script `apply_decay.py` est fourni et testé, mais n'est câblé à aucun workflow.
+> **Supprimé** : l'ancienne décroissance quotidienne des scores (`apply_decay.py`, courbe d'Ebbinghaus)
+> a été **retirée**. Sa formule (`rate: 0.30`) détruisait 88 % des scores en 7 jours si elle était
+> câblée. La planification des révisions est désormais assurée par **SM-2** (`due_at`), sans
+> décroissance destructive.
 
 ---
 
@@ -86,7 +88,7 @@ de révision (`due_at`) sont recalculées avec la courbe d'Ebbinghaus, et `dues.
 - **FR-001**: Le système DOIT stocker le profil de maîtrise en YAML, une notion par entrée sous `profile/*.yaml`, avec 7 dimensions (connaissance, implementation, debug, explication, design, securite, performance) bornées `[0,1]`.
 - **FR-002**: Le système DOIT générer un exercice de 30-60 min intégrant 3 à 8 notions (cible à ajuster selon la granularité des ressources), via un workflow GitHub Actions appelant une passerelle IA OpenAI-compatible.
 - **FR-003**: Le système DOIT analyser une soumission (lint `flake8`/`shellcheck` sur les blocs de code extraits + détection anti-patterns + évaluation LLM) et produire un rapport structuré avec scores par dimension.
-- **FR-004**: Le système DOIT mettre à jour le profil à partir du rapport d'analyse, recalculer `due_at` via la courbe d'Ebbinghaus, et maintenir `dues.yaml`.
+- **FR-004**: Le système DOIT mettre à jour le profil à partir du rapport d'analyse, recalculer `due_at` via **SM-2** (qualité de récupération déduite de la maîtrise multidimensionnelle), et maintenir `dues.yaml`. Le système NE DOIT accepter que des notions déclarées dans `roadmap.yaml` (whitelist).
 - **FR-005**: *(Différé — hors MVP)* Le système POURRA appliquer une décroissance quotidienne des scores selon `score * exp(-rate * jours_ecoules)`.
 - **FR-006**: Le système DOIT sélectionner les N notions dues prioritaires (priorité + ancienneté) pour la génération d'exercice.
 - **FR-007**: Le système NE DOIT contenir aucun secret ni donnée sensible ; les tokens vivent exclusivement dans les secrets GitHub Actions.
@@ -113,8 +115,8 @@ de révision (`due_at`) sont recalculées avec la courbe d'Ebbinghaus, et `dues.
 - Le MVP couvre uniquement le domaine Linux avec 2 notions (`bash_scripting`, `file_parsing`) ; les exercices visent 3 à 8 notions à terme (granularité des ressources à définir).
 - Le projet est réparti sur deux repos : `devopsforge` (public, processus complet) et `devopsforge-profile` (privé, uniquement `profile/` + `dues.yaml` + `errors.log`). Les workflows publics accèdent au profil privé via `GH_TOKEN` + la variable `PROFILE_REPO_PATH`.
 - L'évaluation multidimensionnelle est réalisée par `analyze-session.yml` (DeepSeek Pro) au MVP ; OpenClaw (socratique/Feynman, entretien simulé) est différé.
-- La décroissance quotidienne (Ebbinghaus) est différée hors MVP (nice-to-have).
-- La branche `main` est protégée : PR obligatoire + 1 approbation + status checks requis. Le bot ouvre des PR et approuve les soumissions ; l'humain merge.
+- La planification des révisions utilise l'algorithme **SM-2** (l'ancienne courbe d'Ebbinghaus est supprimée).
+- La branche `main` est protégée : PR obligatoire + 1 approbation + status checks requis. Le bot ouvre des PR, **analyse et commente** le rapport. L'**approbation automatique échoue** lorsque la PR est ouverte par le compte du bot (GitHub interdit l'auto-approbation) ; **l'humain merge**.
 - La passerelle IA est OpenAI-compatible ; `base_url` et identifiants de modèles sont configurés via secrets/variables GitHub.
 - `{project_state}`, `{last_exercise}` et `{errors_log}` sont des placeholders vides au MVP (le projet fil rouge public n'existe pas encore).
 - Le format du rapport d'analyse utilise un front-matter YAML machine-readable suivi d'un corps Markdown lisible.
