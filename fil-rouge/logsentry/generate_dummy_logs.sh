@@ -1,7 +1,9 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 FILENAME="access"
 
+mkdir -p "$SCRIPT_DIR/data"
 if [ "$#" == 1 ]; then
   FILENAME="$1"
 fi
@@ -15,9 +17,9 @@ fi
     ms=$((RANDOM % 1200))
     printf '2024-06-01T08:%02d:%02dZ %s %s %s %s %dms\n' $((RANDOM % 60)) $((RANDOM % 60)) "$ip" "$method" "$path" "$status" "$ms"
   done
-} >"$FILENAME".log
+} >"$SCRIPT_DIR/data/$FILENAME.log"
 
 while read -r ts ip method path status ms; do
-  printf '{"ts":"%s","ip":"%s","method":"%s","path":"%s","status":%s,"duration_ms":%s}\n' \
+  printf '{"ts":"%s","ip":"%s","method":"%s","path":"%s","status":%s,"duration_ms":"%s"}\n' \
     "$ts" "$ip" "$method" "$path" "$status" "${ms%dms}"
-done </data/"$FILENAME".log >/data/"$FILENAME".jsonl
+done <"$SCRIPT_DIR/data/$FILENAME.log" >"$SCRIPT_DIR/data/$FILENAME".jsonl

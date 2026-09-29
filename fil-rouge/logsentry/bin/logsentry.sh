@@ -3,20 +3,33 @@ set -euo pipefail
 IFS=$'\n\t'
 
 # ===============
+cleanup() {
+  rm -f "/tmp/stdin_data.log" 2>/dev/null || true
+}
+
+trap 'echo "TERM RECEIVED" >&2; cleanup; exit 143' TERM
+trap 'cleanup' EXIT
+
+# ===============
 INPUT_FILE=""
 FORMAT="text"
 THRESHOLD=500
 TOP_N=5
 VERBOSE=0
 INT_REGEX='^[0-9]+$'
+TMP_FILE="/tmp/stdin_data.log"
 
 # ===============
 usage() {
+
   cat <<EOF
+
 Usage: logsentry -i <file> [OPTIONS]
 
 Options:
-  -i, --input <file>       Fichier de logs (obligatoire)
+  -i, --input <file|->     Fichier de logs <fichier|entrée standard> 
+   option obligatoire
+
   -f, --format <text|json> Format d'entrée (défaut: text)
   -t, --threshold <ms>     Seuil requête lente en ms (défaut: 500)
   -n, --top <N>            Nombre d'endpoints du top (défaut: 5)
@@ -32,40 +45,51 @@ log_verbose() {
 }
 
 echo_err() {
-  echo "Erreur : $*" >&2
+  echo "Erreur : $1" >&2
+  if [ "$#" -ge 3 ] && [ "$3" = usage ]; then
+    usage >&2
+  fi
+  exit "$2"
 }
 
 # ===============
+validate_jsonl() {
+  if ! jq -e '
+        type == "object"
+        and (.ts | type == "string")
+        and (.ip | type == "string")
+        and (.method | type == "string")
+        and (.path | type == "string")
+        and (.status | type == "number")
+        and (.duration_ms | type == "string")
+    ' "$INPUT_FILE" >/dev/null 2>&1; then
+    echo_err "Fichier JSONL invalide ou schéma invalide" 4 usage
+  fi
+}
+
 validate_args() {
   if [[ -z "$INPUT_FILE" ]]; then
-    echo_err "L'option -i/--input est obligatoire."
-    usage >&2
-    exit 1
+    echo_err "L'option -i/--input est obligatoire." 1 usage
   fi
 
   if [[ ! -f "$INPUT_FILE" || ! -r "$INPUT_FILE" ]]; then
-    echo_err "Fichier '$INPUT_FILE' introuvable ou illisible."
-    exit 2
+    echo_err "Fichier '$INPUT_FILE' introuvable ou illisible." 2 usage
   fi
 
   if [[ ! -s "$INPUT_FILE" ]]; then
-    echo_err "Le fichier '$INPUT_FILE' est vide."
-    exit 4
+    echo_err "Le fichier '$INPUT_FILE' est vide." 4
   fi
 
   if [[ "$FORMAT" != "text" && "$FORMAT" != "json" ]]; then
-    echo_err "Format '$FORMAT' non supporté (text|json uniquement)."
-    exit 3
+    echo_err "Format '$FORMAT' non supporté (text|json uniquement)." 3
   fi
 
   if ! [[ "$TOP_N" =~ $INT_REGEX ]]; then
-    echo_err "--top/-n doit être un entier positif."
-    exit 1
+    echo_err "--top/-n doit être un entier positif." 1
   fi
 
   if ! [[ "$THRESHOLD" =~ $INT_REGEX ]]; then
-    echo_err "--threshold/-t doit être un entier positif."
-    exit 1
+    echo_err "--threshold/-t doit être un entier positif." 1
   fi
 }
 
@@ -77,7 +101,20 @@ parse_args() {
       exit 0
       ;;
     -i | --input)
-      INPUT_FILE="${2:-}"
+      if [[ -z "${2:-}" ]]; then
+
+        echo_err "--input (fichier ou - pour l'entrée standard) uniquement" 1
+      fi
+      if [[ "$2" == "-" ]]; then
+        rm -f "$TMP_FILE"
+        # Le <&0 force la lecture du flux STDIN d'origine au lieu de /dev/null
+        cat <&0 >"$TMP_FILE" &
+        CAT_PID=$!
+        wait "$CAT_PID" 2>/dev/null || true
+        INPUT_FILE="$TMP_FILE"
+      else
+        INPUT_FILE="$2"
+      fi
       shift 2
       ;;
     -f | --format)
@@ -96,10 +133,18 @@ parse_args() {
       VERBOSE=1
       shift
       ;;
+    -)
+      if [[ -z "$INPUT_FILE" ]]; then
+        rm -f "$TMP_FILE"
+        cat <&0 >"$TMP_FILE" &
+        CAT_PID=$!
+        wait "$CAT_PID" 2>/dev/null || true
+        INPUT_FILE="$TMP_FILE"
+      fi
+      shift
+      ;;
     *)
-      echo_err "Option inconnue '$1'"
-      usage >&2
-      exit 1
+      echo_err "Option inconnue '$1'" 1 usage
       ;;
     esac
   done
@@ -107,7 +152,11 @@ parse_args() {
 
 # ===============
 analyze_text() {
-  LC_ALL=C awk -v threshold="$THRESHOLD" -v top_n="$TOP_N" -v filename="$INPUT_FILE" '
+  if jq -e . "$INPUT_FILE" >/dev/null 2>&1; then
+    echo_err "Fichier JSON, utilisez -f json" 4 usage
+  fi
+  LC_ALL=C awk -v threshold="$THRESHOLD" -v top_n="$TOP_N" \
+    -v filename="$INPUT_FILE" '
   {
     req++
     lat = $6 + 0
@@ -122,7 +171,6 @@ analyze_text() {
   }
   END {
     if (req == 0) exit 4
-
     avg_lat = total_lat / req
     err_pct = (errors / req) * 100
 
@@ -130,8 +178,12 @@ analyze_text() {
     for (ip in ip_err) {
       ip_str = (ip_str == "") ? ip : ip_str ", " ip
     }
-
-    printf "Fichier         : %s\n", filename
+    if (filename == "/tmp/stdin_data.log") {
+        printf "Fichier         : Entrée standard\n"
+    } else {
+        printf "Fichier         : %s\n", filename
+    }
+    if(length(endpoints) < top_n) top_n = length(endpoints)
     printf "Requêtes        : %d\n", req
     printf "Erreurs 5xx     : %d (%.2f%%)\n", errors, err_pct
     printf "Latence moy.    : %.0f ms\n", avg_lat
@@ -149,6 +201,10 @@ analyze_text() {
 }
 
 analyze_json() {
+  if ! jq -e . "$INPUT_FILE" >/dev/null 2>&1; then
+    echo_err "Fichier JSON invalide" 4 usage
+  fi
+  validate_jsonl
   jq -s \
     --arg file "$INPUT_FILE" \
     --argjson threshold "$THRESHOLD" \
@@ -183,6 +239,9 @@ main() {
 
   log_verbose "Fichier: $INPUT_FILE | Format: $FORMAT | Threshold: $THRESHOLD | Top: $TOP_N"
 
+  if [[ $TOP_N -gt $(wc -l <"$INPUT_FILE") ]]; then
+    TOP_N=$(wc -l <"$INPUT_FILE")
+  fi
   if [[ "$FORMAT" == "json" ]]; then
     analyze_json
   else
